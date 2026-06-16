@@ -58,6 +58,36 @@
     .animate-pulse-slow {
       animation: pulse-slow 3s ease-in-out infinite;
     }
+
+    /* Print styling rules: Only print the Periodic Table card, hide everything else */
+    @media print {
+      @page {
+        size: landscape; /* Automatically set page to landscape format for perfect fit */
+        margin: 0.5cm;
+      }
+      body {
+        background: white !important;
+        color: black !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      /* Hide navigation header, footer, settings, other tabs, and print controls */
+      header, nav, footer, .no-print, button {
+        display: none !important;
+      }
+      /* Expand periodic table to fill the printed A4 page */
+      .print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        max-width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-bubble min-h-screen overflow-x-hidden text-slate-800 selection:bg-yellow-200">
@@ -65,6 +95,17 @@
 
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
+
+    // --- VOICE ENGINE WARM-UP (To fix the 2-clicks SpeechSynthesis issue) ---
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // Force loading of voices immediately upon startup
+      window.speechSynthesis.getVoices();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          window.speechSynthesis.getVoices();
+        };
+      }
+    }
 
     // --- SOUND SYNTHESIS USING WEB AUDIO API (NO EXTERNAL ASSETS NEEDED!) ---
     const playSynthSound = (type) => {
@@ -81,7 +122,6 @@
         const now = ctx.currentTime;
         
         if (type === 'success') {
-          // Playful ascending arpeggio (C Major chord)
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(523.25, now); // C5
           osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
@@ -95,7 +135,6 @@
           osc.start(now);
           osc.stop(now + 0.5);
         } else if (type === 'error') {
-          // Disappointed descending cartoon buzzer
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(180, now);
           osc.frequency.linearRampToValueAtTime(110, now + 0.3);
@@ -107,7 +146,6 @@
           osc.start(now);
           osc.stop(now + 0.4);
         } else if (type === 'click') {
-          // Clean bubble popping click
           osc.type = 'sine';
           osc.frequency.setValueAtTime(600, now);
           osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
@@ -118,7 +156,6 @@
           osc.start(now);
           osc.stop(now + 0.15);
         } else if (type === 'bubble') {
-          // High water bubble sound
           osc.type = 'sine';
           osc.frequency.setValueAtTime(800, now);
           osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
@@ -130,7 +167,6 @@
           osc.start(now);
           osc.stop(now + 0.2);
         } else if (type === 'star') {
-          // Sparkle chiming sound
           osc.type = 'sine';
           osc.frequency.setValueAtTime(987.77, now); // B5
           osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
@@ -150,20 +186,21 @@
     // --- ENGLISH VOICE READ OUT (TEXT-TO-SPEECH) ---
     const speakEnglish = (text) => {
       if ('speechSynthesis' in window) {
-        // Cancel any current speech
+        // Stop any currently playing speech to make it highly responsive
         window.speechSynthesis.cancel();
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.85; // Slightly slower for primary school children to catch easily
-        utterance.pitch = 1.1;  // Cheerful and friendly pitch for kids
+        utterance.rate = 0.85; 
+        utterance.pitch = 1.1;  
         
-        // Find English voice
         const voices = window.speechSynthesis.getVoices();
-        const enVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google')) || 
-                        voices.find(v => v.lang.startsWith('en-')) || 
-                        voices[0];
-        if (enVoice) utterance.voice = enVoice;
+        if (voices && voices.length > 0) {
+          const enVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google')) || 
+                          voices.find(v => v.lang.startsWith('en-')) || 
+                          voices[0];
+          if (enVoice) utterance.voice = enVoice;
+        }
         
         window.speechSynthesis.speak(utterance);
       } else {
@@ -224,7 +261,7 @@
         emoji: "💎", 
         useZh: "💎 太空望遠鏡的反射鏡", 
         useEn: "💎 Mirrors for space telescopes",
-        factZh: "雖然是金屬，但非常輕又異常堅固！詹姆斯·韋伯太空望遠鏡的巨大金色鏡片就是用鈹做的！", 
+        factZh: "雖然是金屬，但非常輕又異常堅固！詹姆斯·韋伯太空望遠鏡的金色鏡片就是用鈹做的！", 
         factEn: "A metal that is incredibly light and strong! The golden mirrors on the James Webb Space Telescope are made of it!",
         voiceText: "Beryllium! B E. Number 4. Light and extremely strong. It is used to make beautiful space telescopes!" 
       },
@@ -434,7 +471,7 @@
         emoji: "🍌", 
         useZh: "🍌 香蕉、牛油果與薯仔的營養", 
         useEn: "🍌 Nutrients inside bananas & avocados",
-        factZh: "香蕉和薯仔裡含有豐富的鉀。它是維持我們大腦神經與肌肉運動必不可少的超級電解質！", 
+        factZh: "香蕉和薯仔裡含有豐富 of 鉀。它是維持我們大腦神經與肌肉運動必不可少的超級電解質！", 
         factEn: "Bananas are rich in potassium! This special nutrient helps keep your muscles moving and heart beating!",
         voiceText: "Potassium! K. Number 19. A key nutrient found in bananas that keeps our heart beating and muscles moving!" 
       },
@@ -454,7 +491,128 @@
       }
     ];
 
-    // Category mappings for filtering and badges
+    // --- ENTIRE 118 PERIODIC TABLE DATASET ---
+    const all118Elements = [
+      { num: 1, sym: "H", nameZh: "氫", nameEn: "Hydrogen", cat: "reactive-nonmetal" },
+      { num: 2, sym: "He", nameZh: "氦", nameEn: "Helium", cat: "noble-gas" },
+      { num: 3, sym: "Li", nameZh: "鋰", nameEn: "Lithium", cat: "alkali-metal" },
+      { num: 4, sym: "Be", nameZh: "鈹", nameEn: "Beryllium", cat: "alkaline-earth" },
+      { num: 5, sym: "B", nameZh: "硼", nameEn: "Boron", cat: "metalloid" },
+      { num: 6, sym: "C", nameZh: "碳", nameEn: "Carbon", cat: "reactive-nonmetal" },
+      { num: 7, sym: "N", nameZh: "氮", nameEn: "Nitrogen", cat: "reactive-nonmetal" },
+      { num: 8, sym: "O", nameZh: "氧", nameEn: "Oxygen", cat: "reactive-nonmetal" },
+      { num: 9, sym: "F", nameZh: "氟", nameEn: "Fluorine", cat: "halogen" },
+      { num: 10, sym: "Ne", nameZh: "氖", nameEn: "Neon", cat: "noble-gas" },
+      { num: 11, sym: "Na", nameZh: "鈉", nameEn: "Sodium", cat: "alkali-metal" },
+      { num: 12, sym: "Mg", nameZh: "鎂", nameEn: "Magnesium", cat: "alkaline-earth" },
+      { num: 13, sym: "Al", nameZh: "鋁", nameEn: "Aluminum", cat: "post-transition" },
+      { num: 14, sym: "Si", nameZh: "矽", nameEn: "Silicon", cat: "metalloid" },
+      { num: 15, sym: "P", nameZh: "磷", nameEn: "Phosphorus", cat: "reactive-nonmetal" },
+      { num: 16, sym: "S", nameZh: "硫", nameEn: "Sulfur", cat: "reactive-nonmetal" },
+      { num: 17, sym: "Cl", nameZh: "氯", nameEn: "Chlorine", cat: "halogen" },
+      { num: 18, sym: "Ar", nameZh: "氬", nameEn: "Argon", cat: "noble-gas" },
+      { num: 19, sym: "K", nameZh: "鉀", nameEn: "Potassium", cat: "alkali-metal" },
+      { num: 20, sym: "Ca", nameZh: "鈣", nameEn: "Calcium", cat: "alkaline-earth" },
+      { num: 21, sym: "Sc", nameZh: "鈧", nameEn: "Scandium", cat: "transition-metal" },
+      { num: 22, sym: "Ti", nameZh: "鈦", nameEn: "Titanium", cat: "transition-metal" },
+      { num: 23, sym: "V", nameZh: "釩", nameEn: "Vanadium", cat: "transition-metal" },
+      { num: 24, sym: "Cr", nameZh: "鉻", nameEn: "Chromium", cat: "transition-metal" },
+      { num: 25, sym: "Mn", nameZh: "錳", nameEn: "Manganese", cat: "transition-metal" },
+      { num: 26, sym: "Fe", nameZh: "鐵", nameEn: "Iron", cat: "transition-metal" },
+      { num: 27, sym: "Co", nameZh: "鈷", nameEn: "Cobalt", cat: "transition-metal" },
+      { num: 28, sym: "Ni", nameZh: "鎳", nameEn: "Nickel", cat: "transition-metal" },
+      { num: 29, sym: "Cu", nameZh: "銅", nameEn: "Copper", cat: "transition-metal" },
+      { num: 30, sym: "Zn", nameZh: "鋅", nameEn: "Zinc", cat: "transition-metal" },
+      { num: 31, sym: "Ga", nameZh: "鎵", nameEn: "Gallium", cat: "post-transition" },
+      { num: 32, sym: "Ge", nameZh: "鍺", nameEn: "Germanium", cat: "metalloid" },
+      { num: 33, sym: "As", nameZh: "砷", nameEn: "Arsenic", cat: "metalloid" },
+      { num: 34, sym: "Se", nameZh: "硒", nameEn: "Selenium", cat: "reactive-nonmetal" },
+      { num: 35, sym: "Br", nameZh: "溴", nameEn: "Bromine", cat: "halogen" },
+      { num: 36, sym: "Kr", nameZh: "氪", nameEn: "Krypton", cat: "noble-gas" },
+      { num: 37, sym: "Rb", nameZh: "銣", nameEn: "Rubidium", cat: "alkali-metal" },
+      { num: 38, sym: "Sr", nameZh: "鍶", nameEn: "Strontium", cat: "alkaline-earth" },
+      { num: 39, sym: "Y", nameZh: "", nameEn: "Yttrium", cat: "transition-metal" },
+      { num: 40, sym: "Zr", nameZh: "鋯", nameEn: "Zirconium", cat: "transition-metal" },
+      { num: 41, sym: "Nb", nameZh: "鈮", nameEn: "Niobium", cat: "transition-metal" },
+      { num: 42, sym: "Mo", nameZh: "鉬", nameEn: "Molybdenum", cat: "transition-metal" },
+      { num: 43, sym: "Tc", nameZh: "鎝", nameEn: "Technetium", cat: "transition-metal" },
+      { num: 44, sym: "Ru", nameZh: "釕", nameEn: "Ruthenium", cat: "transition-metal" },
+      { num: 45, sym: "Rh", nameZh: "銠", nameEn: "Rhodium", cat: "transition-metal" },
+      { num: 46, sym: "Pd", nameZh: "鈀", nameEn: "Palladium", cat: "transition-metal" },
+      { num: 47, sym: "Ag", nameZh: "銀", nameEn: "Silver", cat: "transition-metal" },
+      { num: 48, sym: "Cd", nameZh: "鎘", nameEn: "Cadmium", cat: "transition-metal" },
+      { num: 49, sym: "In", nameZh: "銦", nameEn: "Indium", cat: "post-transition" },
+      { num: 50, sym: "Sn", nameZh: "錫", nameEn: "Tin", cat: "post-transition" },
+      { num: 51, sym: "Sb", nameZh: "銻", nameEn: "Antimony", cat: "metalloid" },
+      { num: 52, sym: "Te", nameZh: "碲", nameEn: "Tellurium", cat: "metalloid" },
+      { num: 53, sym: "I", nameZh: "碘", nameEn: "Iodine", cat: "halogen" },
+      { num: 54, sym: "Xe", nameZh: "氙", nameEn: "Xenon", cat: "noble-gas" },
+      { num: 55, sym: "Cs", nameZh: "銫", nameEn: "Cesium", cat: "alkali-metal" },
+      { num: 56, sym: "Ba", nameZh: "鋇", nameEn: "Barium", cat: "alkaline-earth" },
+      { num: 57, sym: "La", nameZh: "鑭", nameEn: "Lanthanum", cat: "lanthanide" },
+      { num: 58, sym: "Ce", nameZh: "鈰", nameEn: "Cerium", cat: "lanthanide" },
+      { num: 59, sym: "Pr", nameZh: "鐠", nameEn: "Praseodymium", cat: "lanthanide" },
+      { num: 60, sym: "Nd", nameZh: "釹", nameEn: "Neodymium", cat: "lanthanide" },
+      { num: 61, sym: "Pm", nameZh: "鉕", nameEn: "Promethium", cat: "lanthanide" },
+      { num: 62, sym: "Sm", nameZh: "釤", nameEn: "Samarium", cat: "lanthanide" },
+      { num: 63, sym: "Eu", nameZh: "銪", nameEn: "Europium", cat: "lanthanide" },
+      { num: 64, sym: "Gd", nameZh: "釓", nameEn: "Gadolinium", cat: "lanthanide" },
+      { num: 65, sym: "Tb", nameZh: "鋱", nameEn: "Terbium", cat: "lanthanide" },
+      { num: 66, sym: "Dy", nameZh: "鏑", nameEn: "Dysprosium", cat: "lanthanide" },
+      { num: 67, sym: "Ho", nameZh: "鈥", nameEn: "Holmium", cat: "lanthanide" },
+      { num: 68, sym: "Er", nameZh: "鉺", nameEn: "Erbium", cat: "lanthanide" },
+      { num: 69, sym: "Tm", nameZh: "銩", nameEn: "Thulium", cat: "lanthanide" },
+      { num: 70, sym: "Yb", nameZh: "鐿", nameEn: "Ytterbium", cat: "lanthanide" },
+      { num: 71, sym: "Lu", nameZh: "鎦", nameEn: "Lutetium", cat: "lanthanide" },
+      { num: 72, sym: "Hf", nameZh: "鉿", nameEn: "Hafnium", cat: "transition-metal" },
+      { num: 73, sym: "Ta", nameZh: "鉭", nameEn: "Tantalum", cat: "transition-metal" },
+      { num: 74, sym: "W", nameZh: "鎢", nameEn: "Tungsten", cat: "transition-metal" },
+      { num: 75, sym: "Re", nameZh: "錸", nameEn: "Rhenium", cat: "transition-metal" },
+      { num: 76, sym: "Os", nameZh: "鋨", nameEn: "Osmium", cat: "transition-metal" },
+      { num: 77, sym: "Ir", nameZh: "銥", nameEn: "Iridium", cat: "transition-metal" },
+      { num: 78, sym: "Pt", nameZh: "鉑", nameEn: "Platinum", cat: "transition-metal" },
+      { num: 79, sym: "Au", nameZh: "金", nameEn: "Gold", cat: "transition-metal" },
+      { num: 80, sym: "Hg", nameZh: "汞", nameEn: "Mercury", cat: "transition-metal" },
+      { num: 81, sym: "Tl", nameZh: "鉈", nameEn: "Thallium", cat: "post-transition" },
+      { num: 82, sym: "Pb", nameZh: "鉛", nameEn: "Lead", cat: "post-transition" },
+      { num: 83, sym: "Bi", nameZh: "鉍", nameEn: "Bismuth", cat: "post-transition" },
+      { num: 84, sym: "Po", nameZh: "釙", nameEn: "Polonium", cat: "post-transition" },
+      { num: 85, sym: "At", nameZh: "砈", nameEn: "Astatine", cat: "halogen" },
+      { num: 86, sym: "Rn", nameZh: "氡", nameEn: "Radon", cat: "noble-gas" },
+      { num: 87, sym: "Fr", nameZh: "鍅", nameEn: "Francium", cat: "alkali-metal" },
+      { num: 88, sym: "Ra", nameZh: "鐳", nameEn: "Radium", cat: "alkaline-earth" },
+      { num: 89, sym: "Ac", nameZh: "錒", nameEn: "Actinium", cat: "actinide" },
+      { num: 90, sym: "Th", nameZh: "釷", nameEn: "Thorium", cat: "actinide" },
+      { num: 91, sym: "Pa", nameZh: "鏷", nameEn: "Protact.", cat: "actinide" },
+      { num: 92, sym: "U", nameZh: "鈾", nameEn: "Uranium", cat: "actinide" },
+      { num: 93, sym: "Np", nameZh: "錼", nameEn: "Neptun.", cat: "actinide" },
+      { num: 94, sym: "Pu", nameZh: "鈽", nameEn: "Pluton.", cat: "actinide" },
+      { num: 95, sym: "Am", nameZh: "鋂", nameEn: "Americ.", cat: "actinide" },
+      { num: 96, sym: "Cm", nameZh: "鋦", nameEn: "Curium", cat: "actinide" },
+      { num: 97, sym: "Bk", nameZh: "鉳", nameEn: "Berkel.", cat: "actinide" },
+      { num: 98, sym: "Cf", nameZh: "鉲", nameEn: "Californ.", cat: "actinide" },
+      { num: 99, sym: "Es", nameZh: "鑀", nameEn: "Einstein.", cat: "actinide" },
+      { num: 100, sym: "Fm", nameZh: "費", nameEn: "Fermium", cat: "actinide" },
+      { num: 101, sym: "Md", nameZh: "鍆", nameEn: "Mendelev.", cat: "actinide" },
+      { num: 102, sym: "No", nameZh: "鍩", nameEn: "Nobelium", cat: "actinide" },
+      { num: 103, sym: "Lr", nameZh: "鐒", nameEn: "Lawrenc.", cat: "actinide" },
+      { num: 104, sym: "Rf", nameZh: "鑪", nameEn: "Rutherford.", cat: "transition-metal" },
+      { num: 105, sym: "Db", nameZh: "𨧀", nameEn: "Dubnium", cat: "transition-metal" },
+      { num: 106, sym: "Sg", nameZh: "𨭎", nameEn: "Seaborg.", cat: "transition-metal" },
+      { num: 107, sym: "Bh", nameZh: "𨨏", nameEn: "Bohrium", cat: "transition-metal" },
+      { num: 108, sym: "Hs", nameZh: "𨭆", nameEn: "Hassium", cat: "transition-metal" },
+      { num: 109, sym: "Mt", nameZh: "䥑", nameEn: "Meitner.", cat: "transition-metal" },
+      { num: 110, sym: "Ds", nameZh: "鐽", nameEn: "Darmstadt.", cat: "transition-metal" },
+      { num: 111, sym: "Rg", nameZh: "錀", nameEn: "Roentgen.", cat: "transition-metal" },
+      { num: 112, sym: "Cn", nameZh: "鎶", nameEn: "Copernic.", cat: "transition-metal" },
+      { num: 113, sym: "Nh", nameZh: "鉨", nameEn: "Nihonium", cat: "post-transition" },
+      { num: 114, sym: "Fl", nameZh: "鈇", nameEn: "Flerov.", cat: "post-transition" },
+      { num: 115, sym: "Mc", nameZh: "鏌", nameEn: "Moscov.", cat: "post-transition" },
+      { num: 116, sym: "Lv", nameZh: "鉝", nameEn: "Livermor.", cat: "post-transition" },
+      { num: 117, sym: "Ts", nameZh: "鿬", nameEn: "Tenness.", cat: "halogen" },
+      { num: 118, sym: "Og", nameZh: "鿫", nameEn: "Oganess.", cat: "noble-gas" }
+    ];
+
     const categoryNames = {
       "reactive-nonmetal": { name: "活潑非金屬", color: "bg-pink-100 text-pink-700 border-pink-300" },
       "noble-gas": { name: "惰性氣體", color: "bg-purple-100 text-purple-700 border-purple-300" },
@@ -462,11 +620,14 @@
       "alkaline-earth": { name: "鹼土金屬", color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
       "metalloid": { name: "類金屬", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
       "halogen": { name: "鹵素", color: "bg-sky-100 text-sky-700 border-sky-300" },
-      "post-transition": { name: "過渡後金屬", color: "bg-cyan-100 text-cyan-700 border-cyan-300" }
+      "post-transition": { name: "過渡後金屬", color: "bg-cyan-100 text-cyan-700 border-cyan-300" },
+      "transition-metal": { name: "過渡金屬", color: "bg-red-100 text-red-700 border-red-300" },
+      "lanthanide": { name: "鑭系元素", color: "bg-indigo-100 text-indigo-700 border-indigo-300" },
+      "actinide": { name: "錒系元素", color: "bg-violet-100 text-violet-700 border-violet-300" }
     };
 
     function App() {
-      const [activeTab, setActiveTab] = useState('intro'); // intro, flashcard, games, achievements
+      const [activeTab, setActiveTab] = useState('intro'); // intro, flashcard, games, achievements, download
       const [stars, setStars] = useState(() => {
         return parseInt(localStorage.getItem('steam_periodic_stars') || '0', 10);
       });
@@ -476,12 +637,10 @@
         } catch(e) { return []; }
       });
 
-      // Customized YouTube URL states for Teacher's reference
       const [introVideoUrl, setIntroVideoUrl] = useState("https://www.youtube.com/embed/GkoGSoim3NA");
       const [elementsVideoUrl, setElementsVideoUrl] = useState("https://www.youtube.com/embed/Vlae0SkweCk");
       const [showSettings, setShowSettings] = useState(false);
 
-      // Save progress to local storage
       useEffect(() => {
         localStorage.setItem('steam_periodic_stars', stars);
         localStorage.setItem('steam_periodic_badges', JSON.stringify(unlockedAchievements));
@@ -507,7 +666,6 @@
         badgeList.forEach(b => {
           if (currentStars >= b.target && !newBadges.includes(b.id)) {
             newBadges.push(b.id);
-            // Trigger beautiful notification
             showNotification(b.name, b.desc);
           }
         });
@@ -578,7 +736,7 @@
                   </button>
                 </div>
                 <p class="text-slate-500 text-xs mb-4 leading-relaxed">
-                  小學 STEAM 老師您好！為了讓您能高度彈性教學，在此處您可以直接修改本 App 的 YouTube 引導影片。若網路上有更適合小學生的教材，您可在此粘貼 iframe 可播放網址。
+                  小學 STEAM 老師您好！為了讓您能高度彈性教學，在此處您可以直接修改本 App 的 YouTube 引導影片。若網路上有更適合小學生的教材（例如您手邊的 Wikipedia 相關教案影片），您可在此粘貼 iframe 可播放網址。
                 </p>
                 <div class="space-y-4 mb-6">
                   <div>
@@ -639,7 +797,7 @@
               onClick={() => { playSynthSound('click'); setActiveTab('flashcard'); }}
               class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
                 activeTab === 'flashcard' 
-                  ? 'bg-rose-50 text-white shadow-lg border-rose-700 transform -translate-y-1' 
+                  ? 'bg-rose-500 text-white shadow-lg border-rose-700 transform -translate-y-1' 
                   : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
               }`}
             >
@@ -668,6 +826,17 @@
               <i class="fa-solid fa-trophy text-xl"></i>
               <span>4. 我的成就榜</span>
             </button>
+            <button 
+              onClick={() => { playSynthSound('click'); setActiveTab('download'); }}
+              class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
+                activeTab === 'download' 
+                  ? 'bg-cyan-500 text-white shadow-lg border-cyan-700 transform -translate-y-1' 
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <i class="fa-solid fa-print text-xl"></i>
+              <span>5. 📥 完整 A4 週期表下載</span>
+            </button>
           </nav>
 
           {/* --- TAB CONTENT AREA --- */}
@@ -687,6 +856,9 @@
             )}
             {activeTab === 'achievements' && (
               <AchievementsSection stars={stars} unlockedAchievements={unlockedAchievements} />
+            )}
+            {activeTab === 'download' && (
+              <DownloadSection />
             )}
           </main>
 
@@ -739,11 +911,11 @@
                 ></iframe>
               </div>
               
-              {/* Teacher Resources Box */}
+              {/* Teacher Resources Box (DEBUG: Changed Kobo Link to Wikipedia) */}
               <div class="mt-4 bg-yellow-50 rounded-xl p-3 border border-yellow-200 flex justify-between items-center text-xs text-yellow-800">
-                <span>📚 老師參考書單/課程教案</span>
+                <span>📚 元素週期表維基百科參考資料</span>
                 <a href="https://en.wikipedia.org/wiki/Periodic_table" target="_blank" rel="noopener noreferrer" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded-full transition">
-                  前往 Wikipedia參考 <i class="fa-solid fa-up-right-from-square"></i>
+                  瀏覽 Wikipedia <i class="fa-solid fa-up-right-from-square"></i>
                 </a>
               </div>
             </div>
@@ -816,7 +988,6 @@
         } catch(e) { return []; }
       });
 
-      // Filter logic
       const filteredElements = elementsData.filter(el => {
         const matchesCat = filter === 'all' || el.cat === filter;
         const matchesSearch = el.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -834,13 +1005,12 @@
       };
 
       const markAsLearned = (num, e) => {
-        e.stopPropagation(); // Avoid flipping the card when clicking button
+        e.stopPropagation(); 
         if (!learnedElements.includes(num)) {
           const updated = [...learnedElements, num];
           setLearnedElements(updated);
           localStorage.setItem('steam_learned_elements', JSON.stringify(updated));
           
-          // Reward kids!
           addStars(2);
           playSynthSound('success');
         }
@@ -1037,7 +1207,7 @@
     // 3. GAME CENTER
     // ==========================================
     function GameCenter({ addStars }) {
-      const [currentGame, setCurrentGame] = useState('none'); // none, matching, quiz, puzzle
+      const [currentGame, setCurrentGame] = useState('none'); 
 
       return (
         <div class="space-y-6">
@@ -1103,7 +1273,6 @@
             </div>
           ) : (
             <div>
-              {/* Back to lobby button */}
               <button 
                 onClick={() => { playSynthSound('click'); setCurrentGame('none'); }}
                 class="bg-white hover:bg-slate-50 text-slate-600 font-bold py-2 px-5 rounded-full shadow-md transition border-2 border-slate-200 flex items-center gap-2 mb-6"
@@ -1143,10 +1312,7 @@
       ];
 
       const initializeGame = () => {
-        // Randomly select 4 pairs for matching
         const shuffled = [...itemsPool].sort(() => 0.5 - Math.random()).slice(0, 4);
-        
-        // Shuffle left (Symbols) and right (Uses) differently
         const left = shuffled.map(x => ({ sym: x.sym })).sort(() => 0.5 - Math.random());
         const right = shuffled.map(x => ({ sym: x.sym, use: x.use })).sort(() => 0.5 - Math.random());
 
@@ -1179,21 +1345,18 @@
       const checkMatch = (leftSym, rightSym) => {
         if (leftSym && rightSym) {
           if (leftSym === rightSym) {
-            // Correct match
             playSynthSound('success');
             setMatchedPairs(prev => {
               const updated = [...prev, leftSym];
               if (updated.length === 4) {
                 setCompleted(true);
-                addStars(10); // Big reward!
+                addStars(10); 
               }
               return updated;
             });
           } else {
-            // Wrong match
             playSynthSound('error');
           }
-          // Reset selections
           setSelectedLeft(null);
           setSelectedRight(null);
         }
@@ -1205,7 +1368,7 @@
             <h3 class="text-2xl font-black text-pink-600 flex items-center justify-center gap-2">
               <span>🧬 元素與日常實物連連看</span>
             </h3>
-            <p class="text-slate-500 text-sm mt-1">選中左邊的元素符號，再選中右邊對應的生活常見物品吧！</p>
+            <p class="text-slate-500 text-sm mt-1">選中左邊的元素符號，再選中邊對應的生活常見物品吧！</p>
           </div>
 
           <div class="grid grid-cols-2 gap-8 relative py-4">
@@ -1296,12 +1459,11 @@
         { q: "我們在薯片袋中，充入甚麼安全氣體可以使薯片長時間爽脆？", options: ["Cl (氯)", "N (氮)", "H (氫)", "F (氟)"], correct: 1, hint: "Nitrogen 氮氣佔了空氣的78%！" },
         { q: "街上五顏六色非常美麗耀眼的「霓虹燈招牌」，裡面充入了甚麼氣體？", options: ["Ar (氬)", "Mg (鎂)", "Si (矽)", "Ne (氖)"], correct: 3, hint: "Neon 氖通電時會發出絢麗紅光。" },
         { q: "保護牙齒避免產生蛀牙，我們應該使用含有哪種元素的防蛀牙膏？", options: ["F (氟)", "C (碳)", "Be (鈹)", "S (硫)"], correct: 0, hint: "Fluorine 氟是牙齒表面結合成保護盾。" },
-        { q: "香蕉中富含哪種重要的電解質，能保證我們的肌肉神經健康運動？", options: ["Na (鈉)", "K (鉀)", "Li (鋰)", "Al (鋁)"], correct: 1, hint: "Potassium 鉀在香蕉和牛油果中最多。" },
+        { q: "香蕉中富含哪種重要的電解質，能保證我們的肌肉神經健康運動？", options: ["Na (鈉)", "K (鉀)", "Li (鋰)", "Al (鋁)"], correct: 1, hint: "Potassium 鉀在香蕉 and 牛油果中最多。" },
         { q: "燃燒時發出耀眼奪目白光，常用於煙花和閃光彈的是哪種元素？", options: ["Mg (鎂)", "He (氦)", "H (氫)", "Si (矽)"], correct: 0, hint: "Magnesium 燃燒白光非常閃耀。" }
       ];
 
       const startQuiz = () => {
-        // Pick 5 random questions
         const shuffled = [...quizPool].sort(() => 0.5 - Math.random()).slice(0, 5);
         setQuestions(shuffled);
         setCurrentIndex(0);
@@ -1336,9 +1498,7 @@
           setSelectedAnswer(null);
           setIsAnswered(false);
         } else {
-          // Finalize quiz
           setQuizCompleted(true);
-          // Reward: 3 stars per correct answer
           addStars(score * 3);
         }
       };
@@ -1351,7 +1511,6 @@
         <div class="bg-white rounded-3xl p-6 border-4 border-yellow-300 shadow-xl max-w-xl mx-auto space-y-6">
           {!quizCompleted ? (
             <div class="space-y-4">
-              {/* Progress bar */}
               <div class="flex justify-between items-center text-xs text-slate-400 font-bold">
                 <span>問答進行中...</span>
                 <span>問題 {currentIndex + 1} / 5</span>
@@ -1360,12 +1519,10 @@
                 <div class="bg-yellow-400 h-full transition-all duration-300" style={{ width: `${(currentIndex + 1) * 20}%` }}></div>
               </div>
 
-              {/* Question display */}
               <div class="bg-yellow-50/50 rounded-2xl p-4 border border-yellow-100">
                 <p class="text-lg font-black text-slate-800 leading-relaxed">{currentQ.q}</p>
               </div>
 
-              {/* Answers list */}
               <div class="space-y-3">
                 {currentQ.options.map((opt, idx) => {
                   let btnStyle = "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
@@ -1395,7 +1552,6 @@
                 })}
               </div>
 
-              {/* Explanatory hint if answered */}
               {isAnswered && (
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2 animate-pulse-slow">
                   <span>💡</span>
@@ -1406,7 +1562,6 @@
                 </div>
               )}
 
-              {/* Next Question button */}
               {isAnswered && (
                 <button 
                   onClick={handleNext}
@@ -1418,7 +1573,6 @@
 
             </div>
           ) : (
-            // Quiz completed view
             <div class="text-center space-y-6 py-4">
               <div class="text-6xl animate-bounce">🎖️</div>
               <h4 class="text-2xl font-black text-slate-800">完成化學問答！</h4>
@@ -1454,7 +1608,6 @@
       const [draggedItem, setDraggedItem] = useState(null);
       const [solved, setSolved] = useState(false);
 
-      // We focus on first 8 elements for simpler puzzle size appropriate for kids
       const puzzleBase = [
         { num: 1, sym: "H" },
         { num: 2, sym: "He" },
@@ -1467,7 +1620,6 @@
       ];
 
       const initPuzzle = () => {
-        // Randomly pick 3 elements to pull out of the grid
         const missingCount = 3;
         const shuffled = [...puzzleBase].sort(() => 0.5 - Math.random());
         const missingNums = shuffled.slice(0, missingCount).map(x => x.num);
@@ -1487,14 +1639,12 @@
       }, []);
 
       const handleSlotClick = (num) => {
-        // Click-to-place matching simplified for mobile touch screens
         if (!draggedItem) return;
         
         playSynthSound('click');
         const targetEl = gridElements.find(g => g.num === num);
 
         if (targetEl.num === draggedItem.num) {
-          // Correct place!
           playSynthSound('success');
           setGridElements(prev => prev.map(g => {
             if (g.num === num) {
@@ -1507,13 +1657,12 @@
             const updated = prev.filter(x => x.num !== draggedItem.num);
             if (updated.length === 0) {
               setSolved(true);
-              addStars(15); // Big reward for hard puzzle!
+              addStars(15); 
             }
             return updated;
           });
           setDraggedItem(null);
         } else {
-          // Wrong slot!
           playSynthSound('error');
         }
       };
@@ -1673,7 +1822,6 @@
             })}
           </div>
 
-          {/* Progress overview */}
           <div class="pt-4 border-t border-slate-100 text-center space-y-2">
             <p class="text-xs text-slate-400 font-bold">目前擁有 {stars} 顆星，已解鎖 {unlockedAchievements.length} / 3 個榮譽勳章</p>
             <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden border">
@@ -1682,6 +1830,193 @@
                 style={{ width: `${Math.min((stars / 60) * 100, 100)}%` }}
               ></div>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 5. DOWNLOAD & PRINT SECTION (TAB 5 - CORRECT 118-ELEMENT LAYOUT)
+    // ==========================================
+    function DownloadSection() {
+      const handlePrint = () => {
+        playSynthSound('success');
+        window.print();
+      };
+
+      const getCategoryBorderColor = (cat) => {
+        switch (cat) {
+          case 'reactive-nonmetal': return 'border-pink-300 bg-pink-50/50';
+          case 'noble-gas': return 'border-purple-300 bg-purple-50/50';
+          case 'alkali-metal': return 'border-amber-300 bg-amber-50/50';
+          case 'alkaline-earth': return 'border-emerald-300 bg-emerald-50/50';
+          case 'metalloid': return 'border-yellow-300 bg-yellow-50/50';
+          case 'halogen': return 'border-sky-300 bg-sky-50/50';
+          case 'post-transition': return 'border-cyan-300 bg-cyan-50/50';
+          case 'transition-metal': return 'border-red-300 bg-red-50/50';
+          case 'lanthanide': return 'border-indigo-300 bg-indigo-50/50';
+          case 'actinide': return 'border-violet-300 bg-violet-50/50';
+          default: return 'border-slate-300 bg-slate-50/50';
+        }
+      };
+
+      // Construct a standard 18-column grid containing all 118 elements
+      // Row 0 to 6 are Period 1 to 7. 
+      // Rows 8 and 9 are Separated Lanthanides (58-71) and Actinides (90-103)
+      const buildPeriodicGrid = () => {
+        const gridArray = Array(18 * 10).fill(null); // 10 rows total, 18 columns each
+        
+        all118Elements.forEach(el => {
+          let row = -1;
+          let col = -1;
+
+          // Standard Periodic Rows coordinates
+          if (el.num === 1) { row = 0; col = 0; }
+          else if (el.num === 2) { row = 0; col = 17; }
+          else if (el.num >= 3 && el.num <= 4) { row = 1; col = el.num - 3; }
+          else if (el.num >= 5 && el.num <= 10) { row = 1; col = el.num + 7; }
+          else if (el.num >= 11 && el.num <= 12) { row = 2; col = el.num - 11; }
+          else if (el.num >= 13 && el.num <= 18) { row = 2; col = el.num - 1; }
+          else if (el.num >= 19 && el.num <= 36) { row = 3; col = el.num - 19; }
+          else if (el.num >= 37 && el.num <= 54) { row = 4; col = el.num - 37; }
+          // Period 6: Lanthanide row contains 57 (La) in group, and Ce(58) to Lu(71) at the bottom
+          else if (el.num === 55) { row = 5; col = 0; }
+          else if (el.num === 56) { row = 5; col = 1; }
+          else if (el.num === 57) { row = 5; col = 2; } // Lanthanum placeholder/representative
+          else if (el.num >= 58 && el.num <= 71) { 
+            // Placed at bottom lanthanide strip (Row 8)
+            row = 8; col = el.num - 55; // aligned from col 3 to col 16
+          }
+          else if (el.num >= 72 && el.num <= 86) { row = 5; col = el.num - 69; }
+          // Period 7: Actinide row contains 89 (Ac) in group, and Th(90) to Lr(103) at the bottom
+          else if (el.num === 87) { row = 6; col = 0; }
+          else if (el.num === 88) { row = 6; col = 1; }
+          else if (el.num === 89) { row = 6; col = 2; } // Actinium placeholder/representative
+          else if (el.num >= 90 && el.num <= 103) {
+            // Placed at bottom actinide strip (Row 9)
+            row = 9; col = el.num - 87; // aligned from col 3 to col 16
+          }
+          else if (el.num >= 104 && el.num <= 118) { row = 6; col = el.num - 101; }
+
+          if (row !== -1 && col !== -1) {
+            gridArray[row * 18 + col] = el;
+          }
+        });
+        
+        return gridArray;
+      };
+
+      const finalGrid = buildPeriodicGrid();
+
+      return (
+        <div class="space-y-6">
+          {/* Header Controls (Hidden during actual print) */}
+          <div class="no-print bg-white rounded-3xl p-6 shadow-md border-4 border-cyan-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="space-y-1 text-center md:text-left">
+              <h3 class="text-2xl font-black text-cyan-600 flex items-center justify-center md:justify-start gap-2">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>標準 118 號元素週期表（A4 橫向列印版）</span>
+              </h3>
+              <p class="text-slate-500 text-sm">
+                此處顯示的是完整的元素週期表。點擊右側按鈕，系統會自動在橫向 A4 紙張上完整排版，您可以列印實體紙張或存為高清 PDF 學習單！
+              </p>
+            </div>
+            <button 
+              onClick={handlePrint}
+              class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-black py-3.5 px-8 rounded-full shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+            >
+              <i class="fa-solid fa-print text-xl"></i>
+              <span>列印 / 另存高清 A4 PDF</span>
+            </button>
+          </div>
+
+          {/* Printable Element Grid Paper Container (Beautifully styled for complete table) */}
+          <div class="print-area bg-white rounded-3xl border-4 border-slate-200 p-6 shadow-xl max-w-[1050px] mx-auto space-y-4">
+            
+            {/* Header Title inside document */}
+            <div class="text-center border-b-2 border-slate-100 pb-2 flex justify-between items-center px-2">
+              <div class="text-left">
+                <h2 class="text-2xl font-black text-slate-800 tracking-wide">
+                  🧪 STEAM 元素歷險記 — 化學元素週期表
+                </h2>
+                <p class="text-slate-400 text-xs font-bold mt-0.5">完整的 118 個化學元素佈局（IUPAC 標準 / A4 橫向）</p>
+              </div>
+              <div class="text-right text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight no-print">
+                小學 STEAM 專用教材 ‧ 支援實體課堂列印與彩繪著色
+              </div>
+            </div>
+
+            {/* Scientific Periodic Layout Grid (18 columns layout for row alignments) */}
+            <div class="overflow-x-auto pb-2">
+              <div class="min-w-[980px] grid grid-cols-18 gap-[3px]" style={{ gridTemplateColumns: 'repeat(18, minmax(0, 1fr))' }}>
+                {finalGrid.map((el, index) => {
+                  const row = Math.floor(index / 18);
+                  
+                  // Render separator spacer row between actinides and main table
+                  if (row === 7) {
+                    return <div key={`spacer-${index}`} class="h-2"></div>;
+                  }
+
+                  if (el === null) {
+                    // Specific annotations in empty regions to make it look highly professional and authentic!
+                    if (index === 18 * 2 + 5) {
+                      return (
+                        <div key={`empty-${index}`} class="col-span-6 row-span-1 flex items-center justify-center text-center opacity-40 select-none no-print">
+                          <span class="text-xs font-bold text-slate-300 tracking-widest uppercase">Periodic Table</span>
+                        </div>
+                      );
+                    }
+                    // Skip render for cells spanned by the label
+                    if (index > 18 * 2 + 5 && index <= 18 * 2 + 10) return null;
+
+                    return <div key={`empty-${index}`} class="rounded bg-slate-50/20 h-[52px]"></div>;
+                  }
+                  
+                  return (
+                    <div 
+                      key={el.num} 
+                      class={`p-1 rounded border-[1.5px] flex flex-col justify-between h-[52px] transition hover:shadow ${getCategoryBorderColor(el.cat)}`}
+                    >
+                      {/* Top element info */}
+                      <div class="flex justify-between items-start leading-none text-[8px]">
+                        <span class="text-slate-400 font-black">#{el.num}</span>
+                      </div>
+
+                      {/* Chemical symbol display */}
+                      <div class="text-center">
+                        <h4 class="text-base font-black text-slate-800 leading-none">{el.sym}</h4>
+                      </div>
+
+                      {/* Bilingual Names */}
+                      <div class="text-center leading-none">
+                        <p class="text-[9px] font-black text-slate-700 truncate">{el.nameZh}</p>
+                        <p class="text-[7px] font-bold text-slate-400 truncate mt-0.5">{el.nameEn}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Colorful Legends Group */}
+            <div class="grid grid-cols-5 md:grid-cols-10 gap-1.5 pt-3 border-t border-slate-100 text-center">
+              {Object.keys(categoryNames).map((key) => {
+                const cat = categoryNames[key];
+                return (
+                  <div key={key} class={`p-1 rounded text-[9px] font-black border ${cat.color} truncate shadow-sm`}>
+                    {cat.name}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Student metadata slot for physical worksheets */}
+            <div class="pt-3 border-t border-dashed border-slate-200 flex justify-between text-[11px] text-slate-400 font-bold px-2">
+              <span>姓名 (Name): ______________________</span>
+              <span>班別 (Class): ______________________</span>
+              <span>STEAM 課堂專屬學習單</span>
+            </div>
+
           </div>
         </div>
       );
