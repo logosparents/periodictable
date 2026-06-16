@@ -1,0 +1,1695 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 STEAM 元素歷險記 - 互動化學學習 App</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React and Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts for Kids Friendly UI -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    .font-kids {
+      font-family: 'Fredoka One', 'Noto Sans TC', sans-serif;
+    }
+    /* Dynamic cloud background animation */
+    .bg-bubble {
+      background: linear-gradient(135deg, #fef9c3 0%, #dbeafe 50%, #f3e8ff 100%);
+    }
+    /* Smooth card flip styling */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+    /* Floating animations for kids */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(2deg); }
+    }
+    .animate-float {
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes pulse-slow {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-bubble min-h-screen overflow-x-hidden text-slate-800 selection:bg-yellow-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- SOUND SYNTHESIS USING WEB AUDIO API (NO EXTERNAL ASSETS NEEDED!) ---
+    const playSynthSound = (type) => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        const now = ctx.currentTime;
+        
+        if (type === 'success') {
+          // Playful ascending arpeggio (C Major chord)
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+          osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+          osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'error') {
+          // Disappointed descending cartoon buzzer
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          
+          osc.start(now);
+          osc.stop(now + 0.4);
+        } else if (type === 'click') {
+          // Clean bubble popping click
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+          
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'bubble') {
+          // High water bubble sound
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.1, now + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } else if (type === 'star') {
+          // Sparkle chiming sound
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(987.77, now); // B5
+          osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+          osc.frequency.setValueAtTime(1975.53, now + 0.16); // B6
+          
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+          
+          osc.start(now);
+          osc.stop(now + 0.45);
+        }
+      } catch (e) {
+        console.warn("Audio Context is blocked or not supported by browser", e);
+      }
+    };
+
+    // --- ENGLISH VOICE READ OUT (TEXT-TO-SPEECH) ---
+    const speakEnglish = (text) => {
+      if ('speechSynthesis' in window) {
+        // Cancel any current speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85; // Slightly slower for primary school children to catch easily
+        utterance.pitch = 1.1;  // Cheerful and friendly pitch for kids
+        
+        // Find English voice
+        const voices = window.speechSynthesis.getVoices();
+        const enVoice = voices.find(v => v.lang.startsWith('en-') && v.name.includes('Google')) || 
+                        voices.find(v => v.lang.startsWith('en-')) || 
+                        voices[0];
+        if (enVoice) utterance.voice = enVoice;
+        
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert("Your browser does not support Speech Synthesis. Please use Chrome/Safari.");
+      }
+    };
+
+    const elementsData = [
+      { 
+        num: 1, 
+        sym: "H", 
+        nameEn: "Hydrogen", 
+        nameZh: "氫", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "☀️", 
+        useZh: "☀️ 太陽的燃料", 
+        useEn: "☀️ Fuel for the Sun",
+        factZh: "宇宙中數量最多、最輕的元素！太陽發光發熱主要就是靠氫氣燃燒喔！", 
+        factEn: "The lightest and most common element in the universe! It is the fuel that powers the Sun!",
+        voiceText: "Hydrogen! H. Number 1. The lightest and most abundant element in the universe. It powers the Sun!" 
+      },
+      { 
+        num: 2, 
+        sym: "He", 
+        nameEn: "Helium", 
+        nameZh: "氦", 
+        cat: "noble-gas", 
+        color: "from-purple-400 to-indigo-500", 
+        emoji: "🎈", 
+        useZh: "🎈 會飛的氣球", 
+        useEn: "🎈 Floating party balloons",
+        factZh: "比空氣還輕的安全氣體。如果吸入一小口氦氣，說話的聲音會變得像卡通唐老鴨一樣搞笑！", 
+        factEn: "A safe gas that is lighter than air. Inhaling a tiny bit makes your voice sound funny like a cartoon duck!",
+        voiceText: "Helium! H E. Number 2. A light gas that makes party balloons float and your voice sound funny!" 
+      },
+      { 
+        num: 3, 
+        sym: "Li", 
+        nameEn: "Lithium", 
+        nameZh: "鋰", 
+        cat: "alkali-metal", 
+        color: "from-amber-400 to-orange-500", 
+        emoji: "🔋", 
+        useZh: "🔋 手機與平板充電池", 
+        useEn: "🔋 Batteries for phones & tablets",
+        factZh: "世界上最輕的金屬，放在水裡會像小船一樣浮起來。我們日常用的手機和 iPad 電池都有它！", 
+        factEn: "The lightest metal on Earth! It is so light that it floats on water, and it powers your mobile phone!",
+        voiceText: "Lithium! L I. Number 3. The lightest metal on Earth. It is used inside batteries for phones and tablets." 
+      },
+      { 
+        num: 4, 
+        sym: "Be", 
+        nameEn: "Beryllium", 
+        nameZh: "鈹", 
+        cat: "alkaline-earth", 
+        color: "from-emerald-400 to-teal-500", 
+        emoji: "💎", 
+        useZh: "💎 太空望遠鏡的反射鏡", 
+        useEn: "💎 Mirrors for space telescopes",
+        factZh: "雖然是金屬，但非常輕又異常堅固！詹姆斯·韋伯太空望遠鏡的巨大金色鏡片就是用鈹做的！", 
+        factEn: "A metal that is incredibly light and strong! The golden mirrors on the James Webb Space Telescope are made of it!",
+        voiceText: "Beryllium! B E. Number 4. Light and extremely strong. It is used to make beautiful space telescopes!" 
+      },
+      { 
+        num: 5, 
+        sym: "B", 
+        nameEn: "Boron", 
+        nameZh: "硼", 
+        cat: "metalloid", 
+        color: "from-yellow-400 to-amber-500", 
+        emoji: "🧪", 
+        useZh: "🧪 鬼口水拉伸泥玩具", 
+        useEn: "🧪 Stretchy slime toys",
+        factZh: "小朋友最喜歡玩的「鬼口水 (Slime)」之所以軟綿綿又有彈性，就是因為加入了硼砂喔！", 
+        factEn: "The magical ingredient that makes your favorite stretchy toy slime feel so wiggly, soft and bouncy!",
+        voiceText: "Boron! B. Number 5. A cool element used to make stretchy toy slime and super tough glass!" 
+      },
+      { 
+        num: 6, 
+        sym: "C", 
+        nameEn: "Carbon", 
+        nameZh: "碳", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "✏️", 
+        useZh: "✏️ 鉛筆芯與閃亮鑽石", 
+        useEn: "✏️ Pencil lead & shiny diamonds",
+        factZh: "黑漆漆的鉛筆芯（石墨）和世界上最硬、最閃亮的鑽石，其實都是純碳組成的親兄弟！", 
+        factEn: "Dark pencil lead and super hard, sparkling diamonds are actually twin brothers made of pure carbon!",
+        voiceText: "Carbon! C. Number 6. Found in black pencil lead and sparkling, super-hard diamonds!" 
+      },
+      { 
+        num: 7, 
+        sym: "N", 
+        nameEn: "Nitrogen", 
+        nameZh: "氮", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "🥔", 
+        useZh: "🥔 保持薯片包裝爽脆", 
+        useEn: "🥔 Keeping potato chips crispy",
+        factZh: "我們吸入的空氣有高達 78% 都是氮氣！零食袋裡面充入氮氣，能防潮保鮮、保護薯片！", 
+        factEn: "78% of the air is nitrogen! It is pumped into snack bags to keep your favorite chips dry, fresh, and crispy!",
+        voiceText: "Nitrogen! N. Number 7. It makes up most of the air we breathe and keeps potato chips crunchy!" 
+      },
+      { 
+        num: 8, 
+        sym: "O", 
+        nameEn: "Oxygen", 
+        nameZh: "氧", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "🌳", 
+        useZh: "🌳 人類與動物呼吸生存", 
+        useEn: "🌳 Breathing for humans & animals",
+        factZh: "我們每分每秒吸入的保命氣體！植物在陽光下進行光合作用，就會不停向空氣釋放新鮮氧氣！", 
+        factEn: "The essential gas we breathe in every second to live! Plants produce it when they soak in sunlight!",
+        voiceText: "Oxygen! O. Number 8. The essential gas that we, and all animals, need to breathe to live!" 
+      },
+      { 
+        num: 9, 
+        sym: "F", 
+        nameEn: "Fluorine", 
+        nameZh: "氟", 
+        cat: "halogen", 
+        color: "from-sky-400 to-blue-500", 
+        emoji: "🦷", 
+        useZh: "🦷 保護牙齒的防蛀牙膏", 
+        useEn: "🦷 Cavity protection toothpaste",
+        factZh: "牙膏上寫的「含氟」成分。氟能跟牙齒表面結合成保護盾，抵抗細菌，防止蛀牙！", 
+        factEn: "Fluoride in toothpaste acts as a superhero shield, defending your teeth against cavity monsters!",
+        voiceText: "Fluorine! F. Number 9. Helps keep your teeth strong and prevents cavities. Remember to brush your teeth!" 
+      },
+      { 
+        num: 10, 
+        sym: "Ne", 
+        nameEn: "Neon", 
+        nameZh: "氖", 
+        cat: "noble-gas", 
+        color: "from-purple-400 to-indigo-500", 
+        emoji: "💡", 
+        useZh: "💡 城市的七彩霓虹燈招牌", 
+        useEn: "💡 Bright city neon signs",
+        factZh: "在真空管裡通電後，氖氣會發出非常炫目漂亮的紅橘色光芒。霓虹燈招牌就是這樣來的！", 
+        factEn: "A friendly gas that glows with a brilliant red-orange light when plugged into electricity!",
+        voiceText: "Neon! N E. Number 10. A friendly gas that glows with a stunning orange-red light in neon signs!" 
+      },
+      { 
+        num: 11, 
+        sym: "Na", 
+        nameEn: "Sodium", 
+        nameZh: "鈉", 
+        cat: "alkali-metal", 
+        color: "from-amber-400 to-orange-500", 
+        emoji: "🧂", 
+        useZh: "🧂 食用鹽與調味料", 
+        useEn: "🧂 Table salt & seasonings",
+        factZh: "純鈉是一種用小刀就能切開的軟金屬，遇到水會劇烈爆炸！但與氯結合後，就變成了食鹽！", 
+        factEn: "A soft metal you can cut with a knife. It explodes in water, but together with chlorine it becomes table salt!",
+        voiceText: "Sodium! N A. Number 11. A soft metal that reacts with water, but combined with chlorine, it makes table salt!" 
+      },
+      { 
+        num: 12, 
+        sym: "Mg", 
+        nameEn: "Magnesium", 
+        nameZh: "鎂", 
+        cat: "alkaline-earth", 
+        color: "from-emerald-400 to-teal-500", 
+        emoji: "🎆", 
+        useZh: "🎆 璀璨煙花與夜間照明", 
+        useEn: "🎆 Sparkly fireworks & flares",
+        factZh: "鎂金屬點燃時，會散發出無比刺眼奪目的白色強光。所以煙花匯演中都有它的身影！", 
+        factEn: "When burned, magnesium shines with an incredibly bright white light, making fireworks look spectacular!",
+        voiceText: "Magnesium! M G. Number 12. A metal that burns with a super bright white light, perfect for fireworks!" 
+      },
+      { 
+        num: 13, 
+        sym: "Al", 
+        nameEn: "Aluminum", 
+        nameZh: "鋁", 
+        cat: "post-transition", 
+        color: "from-cyan-400 to-blue-500", 
+        emoji: "🥤", 
+        useZh: "🥤 汽水罐、烤肉錫紙與飛機", 
+        useEn: "🥤 Soda cans, kitchen foils & planes",
+        factZh: "非常輕而且不會生鏽的金屬。我們喝的汽水罐、廚房用的錫紙，甚至飛機機身都是用鋁做的！", 
+        factEn: "An ultra-light metal that never rusts! It is used to make soda cans, kitchen foil, and flying airplanes!",
+        voiceText: "Aluminum! A L. Number 13. A very light and silver-colored metal used to make soda cans and planes!" 
+      },
+      { 
+        num: 14, 
+        sym: "Si", 
+        nameEn: "Silicon", 
+        nameZh: "矽", 
+        cat: "metalloid", 
+        color: "from-yellow-400 to-amber-500", 
+        emoji: "💻", 
+        useZh: "💻 電腦、手機與智能晶片", 
+        useEn: "💻 Computer & smartphone chips",
+        factZh: "沙灘上的沙子裡含有大量的矽。它是科技產品的核心——電腦和手機晶片的原材料！", 
+        factEn: "Found in sand on the beach! It is the key raw material used to build the brainy chips inside computers!",
+        voiceText: "Silicon! S I. Number 14. Found in sandy beaches, it is used to make smart chips for computers and phones!" 
+      },
+      { 
+        num: 15, 
+        sym: "P", 
+        nameEn: "Phosphorus", 
+        nameZh: "磷", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "🕯️", 
+        useZh: "🕯️ 安全火柴與發光玩具", 
+        useEn: "🕯️ Matches & glow-in-the-dark toys",
+        factZh: "火柴盒側邊塗著的紅褐色物質就是紅磷。摩擦生熱就能點燃火柴，它也是植物的重要營養！", 
+        factEn: "The red-brown powder on the side of matchboxes is phosphorus. Rubbing it helps light up the match!",
+        voiceText: "Phosphorus! P. Number 15. An active element used on the side of matchboxes to light up matches!" 
+      },
+      { 
+        num: 16, 
+        sym: "S", 
+        nameEn: "Sulfur", 
+        nameZh: "硫", 
+        cat: "reactive-nonmetal", 
+        color: "from-pink-400 to-rose-500", 
+        emoji: "🌋", 
+        useZh: "🌋 火山溫泉與藥品火藥", 
+        useEn: "🌋 Hot springs, medicine & fireworks",
+        factZh: "亮黃色的礦物。火山噴口或溫泉常伴隨有硫磺的味道，聞起來像臭雞蛋，但它能做藥品！", 
+        factEn: "A bright yellow mineral found near volcanoes. It smells like rotten eggs, but can make soothing medicine!",
+        voiceText: "Sulfur! S. Number 16. A yellow mineral found near hot springs and volcanoes that smells like rotten eggs!" 
+      },
+      { 
+        num: 17, 
+        sym: "Cl", 
+        nameEn: "Chlorine", 
+        nameZh: "氯", 
+        cat: "halogen", 
+        color: "from-sky-400 to-blue-500", 
+        emoji: "🏊", 
+        useZh: "🏊 游泳池與自來水消毒劑", 
+        useEn: "🏊 Swimming pool disinfectants",
+        factZh: "綠黃色的氣體。在游泳池中加入極少量的氯，能殺滅細菌，所以游完泳身上會有這種特殊氣味！", 
+        factEn: "Kills bad bacteria to keep pool water clean. It is the distinct, clean smell you sniff after swimming!",
+        voiceText: "Chlorine! C L. Number 17. A powerful disinfectant used to keep swimming pool water clean and safe!" 
+      },
+      { 
+        num: 18, 
+        sym: "Ar", 
+        nameEn: "Argon", 
+        nameZh: "氬", 
+        cat: "noble-gas", 
+        color: "from-purple-400 to-indigo-500", 
+        emoji: "🪩", 
+        useZh: "🪩 保護燈泡與保鮮古董", 
+        useEn: "🪩 Lightbulbs & historical document preservation",
+        factZh: "非常「懶惰」不愛反應的保護氣。填充在傳統燈泡裡能防止燈絲燒斷，也能保護古書不腐壞！", 
+        factEn: "A very 'lazy' gas that never likes to react. It is pumped into lightbulbs to stop the wire from burning!",
+        voiceText: "Argon! A R. Number 18. An inactive gas used to protect glowing lightbulbs and ancient historical papers!" 
+      },
+      { 
+        num: 19, 
+        sym: "K", 
+        nameEn: "Potassium", 
+        nameZh: "鉀", 
+        cat: "alkali-metal", 
+        color: "from-amber-400 to-orange-500", 
+        emoji: "🍌", 
+        useZh: "🍌 香蕉、牛油果與薯仔的營養", 
+        useEn: "🍌 Nutrients inside bananas & avocados",
+        factZh: "香蕉和薯仔裡含有豐富的鉀。它是維持我們大腦神經與肌肉運動必不可少的超級電解質！", 
+        factEn: "Bananas are rich in potassium! This special nutrient helps keep your muscles moving and heart beating!",
+        voiceText: "Potassium! K. Number 19. A key nutrient found in bananas that keeps our heart beating and muscles moving!" 
+      },
+      { 
+        num: 20, 
+        sym: "Ca", 
+        nameEn: "Calcium", 
+        nameZh: "鈣", 
+        cat: "alkaline-earth", 
+        color: "from-emerald-400 to-teal-500", 
+        emoji: "🥛", 
+        useZh: "🥛 幫助骨骼與牙齒強壯的牛奶", 
+        useEn: "🥛 Building strong bones & teeth (milk)",
+        factZh: "牛奶、芝士和西蘭花裡有超多鈣！我們的骨頭和牙齒能長得又高又硬，全靠鈣這一個大功臣！", 
+        factEn: "Milk and cheese are packed with calcium! Drinking milk helps your bones and teeth grow super strong!",
+        voiceText: "Calcium! C A. Number 20. Essential for strong teeth and bones. Drink milk to grow tall and strong!" 
+      }
+    ];
+
+    // Category mappings for filtering and badges
+    const categoryNames = {
+      "reactive-nonmetal": { name: "活潑非金屬", color: "bg-pink-100 text-pink-700 border-pink-300" },
+      "noble-gas": { name: "惰性氣體", color: "bg-purple-100 text-purple-700 border-purple-300" },
+      "alkali-metal": { name: "鹼金屬", color: "bg-amber-100 text-amber-700 border-amber-300" },
+      "alkaline-earth": { name: "鹼土金屬", color: "bg-emerald-100 text-emerald-700 border-emerald-300" },
+      "metalloid": { name: "類金屬", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
+      "halogen": { name: "鹵素", color: "bg-sky-100 text-sky-700 border-sky-300" },
+      "post-transition": { name: "過渡後金屬", color: "bg-cyan-100 text-cyan-700 border-cyan-300" }
+    };
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('intro'); // intro, flashcard, games, achievements
+      const [stars, setStars] = useState(() => {
+        return parseInt(localStorage.getItem('steam_periodic_stars') || '0', 10);
+      });
+      const [unlockedAchievements, setUnlockedAchievements] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('steam_periodic_badges') || '[]');
+        } catch(e) { return []; }
+      });
+
+      // Customized YouTube URL states for Teacher's reference
+      const [introVideoUrl, setIntroVideoUrl] = useState("https://www.youtube.com/embed/GkoGSoim3NA");
+      const [elementsVideoUrl, setElementsVideoUrl] = useState("https://www.youtube.com/embed/Vlae0SkweCk");
+      const [showSettings, setShowSettings] = useState(false);
+
+      // Save progress to local storage
+      useEffect(() => {
+        localStorage.setItem('steam_periodic_stars', stars);
+        localStorage.setItem('steam_periodic_badges', JSON.stringify(unlockedAchievements));
+      }, [stars, unlockedAchievements]);
+
+      const addStars = (amount) => {
+        setStars(prev => {
+          const next = prev + amount;
+          playSynthSound('star');
+          checkAchievements(next);
+          return next;
+        });
+      };
+
+      const checkAchievements = (currentStars) => {
+        const newBadges = [...unlockedAchievements];
+        const badgeList = [
+          { id: 'first_step', name: '🧪 化學小學徒', desc: '獲得 5 顆星星', target: 5, icon: 'fa-vial' },
+          { id: 'quiz_hero', name: '🏆 問答大師', desc: '獲得 25 顆星星', target: 25, icon: 'fa-trophy' },
+          { id: 'element_king', name: '👑 週期表霸王', desc: '獲得 60 顆星星', target: 60, icon: 'fa-crown' }
+        ];
+
+        badgeList.forEach(b => {
+          if (currentStars >= b.target && !newBadges.includes(b.id)) {
+            newBadges.push(b.id);
+            // Trigger beautiful notification
+            showNotification(b.name, b.desc);
+          }
+        });
+        setUnlockedAchievements(newBadges);
+      };
+
+      const [notif, setNotif] = useState(null);
+      const showNotification = (name, desc) => {
+        setNotif({ name, desc });
+        setTimeout(() => setNotif(null), 4000);
+      };
+
+      return (
+        <div class="max-w-6xl mx-auto px-4 py-6 font-kids">
+          {/* --- TOP HEADER / NAVIGATION --- */}
+          <header class="bg-white rounded-3xl shadow-xl p-5 mb-8 flex flex-col md:flex-row justify-between items-center border-4 border-blue-200">
+            <div class="flex items-center gap-4 mb-4 md:mb-0">
+              <div class="bg-gradient-to-tr from-yellow-400 to-orange-500 w-16 h-16 rounded-2xl flex items-center justify-center text-white text-3xl shadow-md animate-float">
+                <i class="fa-solid fa-vial"></i>
+              </div>
+              <div>
+                <h1 class="text-3xl font-extrabold text-blue-600 tracking-wide flex items-center gap-2">
+                  <span>STEAM 元素歷險記</span>
+                </h1>
+                <p class="text-slate-500 text-sm">小學生專屬 ‧ 輕鬆玩轉前 20 號元素週期表 🧪</p>
+              </div>
+            </div>
+
+            {/* Stars Count & Achievement Stats */}
+            <div class="flex items-center gap-3">
+              <div class="bg-yellow-100 border-2 border-yellow-300 rounded-full py-2 px-5 flex items-center gap-2 shadow-inner">
+                <i class="fa-solid fa-star text-yellow-500 text-xl animate-bounce"></i>
+                <span class="text-2xl font-bold text-yellow-700">{stars}</span>
+                <span class="text-sm text-yellow-600">星星</span>
+              </div>
+              <button 
+                onClick={() => { playSynthSound('click'); setShowSettings(!showSettings); }}
+                class="bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full w-10 h-10 flex items-center justify-center transition border-2 border-slate-300"
+                title="老師設置面板"
+              >
+                <i class="fa-solid fa-gear text-lg"></i>
+              </button>
+            </div>
+          </header>
+
+          {/* Achievement Notification Toast */}
+          {notif && (
+            <div class="fixed top-6 right-6 z-50 bg-gradient-to-r from-yellow-400 to-amber-500 text-white rounded-2xl p-5 shadow-2xl flex items-center gap-4 border-4 border-white animate-bounce max-w-sm">
+              <div class="text-4xl">🏆</div>
+              <div>
+                <h4 class="font-black text-lg">解鎖新成就勳章！</h4>
+                <p class="font-bold text-yellow-950">{notif.name}</p>
+                <p class="text-xs text-white/90">{notif.desc}</p>
+              </div>
+            </div>
+          )}
+
+          {/* --- TEACHER SETTINGS MODAL --- */}
+          {showSettings && (
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div class="bg-white rounded-3xl max-w-lg w-full p-6 border-4 border-blue-400 shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
+                    <i class="fa-solid fa-chalkboard-user"></i> 老師/系統工程師 設置區
+                  </h3>
+                  <button onClick={() => setShowSettings(false)} class="text-slate-400 hover:text-slate-600 text-2xl">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                  </button>
+                </div>
+                <p class="text-slate-500 text-xs mb-4 leading-relaxed">
+                  小學 STEAM 老師您好！為了讓您能高度彈性教學，在此處您可以直接修改本 App 的 YouTube 引導影片。若網路上有更適合小學生的教材（例如您手邊的 Kobo Plus 相關教案影片），您可在此粘貼 iframe 可播放網址。
+                </p>
+                <div class="space-y-4 mb-6">
+                  <div>
+                    <label class="block text-slate-700 font-bold text-sm mb-1">🎥 1. 週期表簡介影片網址 (YouTube Embed)</label>
+                    <input 
+                      type="text" 
+                      value={introVideoUrl} 
+                      onChange={(e) => setIntroVideoUrl(e.target.value)}
+                      class="w-full border-2 border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-slate-700 font-bold text-sm mb-1">🎵 2. 前 20 號元素之歌影片網址 (YouTube Embed)</label>
+                    <input 
+                      type="text" 
+                      value={elementsVideoUrl} 
+                      onChange={(e) => setElementsVideoUrl(e.target.value)}
+                      class="w-full border-2 border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none"
+                    />
+                  </div>
+                </div>
+                <div class="flex justify-between items-center">
+                  <button 
+                    onClick={() => {
+                      setIntroVideoUrl("https://www.youtube.com/embed/GkoGSoim3NA");
+                      setElementsVideoUrl("https://www.youtube.com/embed/Vlae0SkweCk");
+                      playSynthSound('click');
+                    }}
+                    class="text-xs text-red-500 underline"
+                  >
+                    重置為預設值
+                  </button>
+                  <button 
+                    onClick={() => { playSynthSound('success'); setShowSettings(false); }}
+                    class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-md transition text-sm"
+                  >
+                    保存並關閉
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- MAIN TABS BAR --- */}
+          <nav class="flex flex-wrap justify-center gap-3 mb-8">
+            <button 
+              onClick={() => { playSynthSound('click'); setActiveTab('intro'); }}
+              class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
+                activeTab === 'intro' 
+                  ? 'bg-blue-500 text-white shadow-lg border-blue-700 transform -translate-y-1' 
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <i class="fa-solid fa-photo-film text-xl"></i>
+              <span>1. 元素導航 Zone</span>
+            </button>
+            <button 
+              onClick={() => { playSynthSound('click'); setActiveTab('flashcard'); }}
+              class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
+                activeTab === 'flashcard' 
+                  ? 'bg-rose-50 text-white shadow-lg border-rose-700 transform -translate-y-1' 
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <i class="fa-solid fa-clone text-xl"></i>
+              <span>2. 元素魔法閃卡</span>
+            </button>
+            <button 
+              onClick={() => { playSynthSound('click'); setActiveTab('games'); }}
+              class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
+                activeTab === 'games' 
+                  ? 'bg-emerald-500 text-white shadow-lg border-emerald-700 transform -translate-y-1' 
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <i class="fa-solid fa-gamepad text-xl"></i>
+              <span>3. 元素大挑戰 (遊戲)</span>
+            </button>
+            <button 
+              onClick={() => { playSynthSound('click'); setActiveTab('achievements'); }}
+              class={`flex items-center gap-2 py-3 px-6 rounded-full font-black text-lg transition duration-200 border-b-4 ${
+                activeTab === 'achievements' 
+                  ? 'bg-yellow-500 text-white shadow-lg border-yellow-700 transform -translate-y-1' 
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <i class="fa-solid fa-trophy text-xl"></i>
+              <span>4. 我的成就榜</span>
+            </button>
+          </nav>
+
+          {/* --- TAB CONTENT AREA --- */}
+          <main class="transition-all duration-300">
+            {activeTab === 'intro' && (
+              <IntroSection 
+                introVideoUrl={introVideoUrl} 
+                elementsVideoUrl={elementsVideoUrl} 
+                addStars={addStars}
+              />
+            )}
+            {activeTab === 'flashcard' && (
+              <FlashcardSection addStars={addStars} />
+            )}
+            {activeTab === 'games' && (
+              <GameCenter addStars={addStars} />
+            )}
+            {activeTab === 'achievements' && (
+              <AchievementsSection stars={stars} unlockedAchievements={unlockedAchievements} />
+            )}
+          </main>
+
+          {/* --- FOOTER --- */}
+          <footer class="mt-12 text-center text-slate-500 text-xs py-6 border-t-2 border-slate-200/50">
+            <p>© 2026 STEAM 元素歷險記 - 小學化學啟蒙教學輔助系統 🧪</p>
+            <p class="mt-1">由 系統工程師 專為小學 STEAM 老師開發。支持 Web Speech API 及高音質語音朗讀。</p>
+          </footer>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 1. INTRODUCTION SECTION
+    // ==========================================
+    function IntroSection({ introVideoUrl, elementsVideoUrl, addStars }) {
+      const [claimedGift, setClaimedGift] = useState(false);
+
+      const handleClaim = () => {
+        if (!claimedGift) {
+          addStars(5);
+          setClaimedGift(true);
+          playSynthSound('success');
+        }
+      };
+
+      return (
+        <div class="space-y-8 animate-pulse-slow">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* TV Show Card 1: Periodic Table Intro */}
+            <div class="bg-white rounded-3xl shadow-xl p-6 border-4 border-yellow-300">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">🎥</span>
+                <h2 class="text-xl font-bold text-slate-800">認識元素週期表是甚麼？</h2>
+              </div>
+              <p class="text-slate-600 text-sm mb-4">
+                世界上所有的物質，大到太陽，小到我們的手機和牙齒，都是由不同的一顆顆「化學元素」組成的喔！讓我們一起看影片，揭開元素週期表的神秘面紗！
+              </p>
+              
+              {/* YouTube Video Embed */}
+              <div class="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden border-4 border-slate-100 shadow-inner">
+                <iframe 
+                  class="absolute top-0 left-0 w-full h-full"
+                  src={introVideoUrl}
+                  title="YouTube video player" 
+                  frameBorder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  allowFullScreen
+                ></iframe>
+              </div>
+              
+              {/* Teacher Resources Box */}
+              <div class="mt-4 bg-yellow-50 rounded-xl p-3 border border-yellow-200 flex justify-between items-center text-xs text-yellow-800">
+                <span>📚 老師參考書單/課程教案</span>
+                <a href="https://www.kobo.com/hk/zh/plus" target="_blank" rel="noopener noreferrer" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded-full transition">
+                  前往 Kobo Plus 參考 <i class="fa-solid fa-up-right-from-square"></i>
+                </a>
+              </div>
+            </div>
+
+            {/* TV Show Card 2: First 20 Elements Song */}
+            <div class="bg-white rounded-3xl shadow-xl p-6 border-4 border-blue-300">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">🎵</span>
+                <h2 class="text-xl font-bold text-slate-800">超好聽！前 20 位元素之歌</h2>
+              </div>
+              <p class="text-slate-600 text-sm mb-4">
+                科學家們把前 20 號元素唱成了輕快的兒歌！一邊聽歌，一邊看著卡通動畫，跟著「氫氦鋰鈹硼、碳氮氧氟氖...」一起哼唱吧！
+              </p>
+
+              {/* YouTube Video Embed */}
+              <div class="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden border-4 border-slate-100 shadow-inner">
+                <iframe 
+                  class="absolute top-0 left-0 w-full h-full"
+                  src={elementsVideoUrl}
+                  title="YouTube video player" 
+                  frameBorder="0" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  allowFullScreen
+                ></iframe>
+              </div>
+
+              <div class="mt-4 bg-blue-50 rounded-xl p-3 border border-blue-200 flex justify-between items-center text-xs text-blue-800">
+                <span>🎤 聽完了嗎？一起唱歌學化學！</span>
+                <span class="italic text-slate-400">唱出前20個元素！</span>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Surprise Gift Box for First Visit */}
+          <div class="bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+              <div class="text-5xl animate-bounce">🎁</div>
+              <div>
+                <h3 class="text-xl font-black">歡迎小學STEAM科學家！</h3>
+                <p class="text-sm text-white/90">看完引導影片後，點擊右邊即可領取你的第一份冒險起跑資金！</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleClaim}
+              disabled={claimedGift}
+              class={`py-3 px-8 rounded-full font-black text-lg shadow-md transition transform hover:scale-105 active:scale-95 ${
+                claimedGift 
+                  ? 'bg-white/40 text-white/80 cursor-not-allowed' 
+                  : 'bg-yellow-400 text-slate-800 hover:bg-yellow-300'
+              }`}
+            >
+              {claimedGift ? '🎁 已領取 5 顆星！' : '🌟 領取 5 顆星星！'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 2. FLASHCARD SECTION (BILINGUAL & ENLARGED FONTS)
+    // ==========================================
+    function FlashcardSection({ addStars }) {
+      const [filter, setFilter] = useState('all');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [flippedCards, setFlippedCards] = useState({});
+      const [learnedElements, setLearnedElements] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('steam_learned_elements') || '[]');
+        } catch(e) { return []; }
+      });
+
+      // Filter logic
+      const filteredElements = elementsData.filter(el => {
+        const matchesCat = filter === 'all' || el.cat === filter;
+        const matchesSearch = el.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              el.nameZh.includes(searchQuery) || 
+                              el.sym.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCat && matchesSearch;
+      });
+
+      const toggleFlip = (num) => {
+        playSynthSound('click');
+        setFlippedCards(prev => ({
+          ...prev,
+          [num]: !prev[num]
+        }));
+      };
+
+      const markAsLearned = (num, e) => {
+        e.stopPropagation(); // Avoid flipping the card when clicking button
+        if (!learnedElements.includes(num)) {
+          const updated = [...learnedElements, num];
+          setLearnedElements(updated);
+          localStorage.setItem('steam_learned_elements', JSON.stringify(updated));
+          
+          // Reward kids!
+          addStars(2);
+          playSynthSound('success');
+        }
+      };
+
+      return (
+        <div class="space-y-6">
+          {/* Controls & Search */}
+          <div class="bg-white rounded-3xl p-6 shadow-md border-4 border-rose-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            {/* Filter buttons */}
+            <div class="flex flex-wrap gap-2 justify-center">
+              <button 
+                onClick={() => { playSynthSound('click'); setFilter('all'); }}
+                class={`px-4 py-2 rounded-full text-xs font-black transition ${filter === 'all' ? 'bg-rose-500 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+              >
+                全部元素 (All)
+              </button>
+              <button 
+                onClick={() => { playSynthSound('click'); setFilter('alkali-metal'); }}
+                class={`px-4 py-2 rounded-full text-xs font-black transition ${filter === 'alkali-metal' ? 'bg-amber-400 text-slate-800' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+              >
+                鹼金屬 🔋
+              </button>
+              <button 
+                onClick={() => { playSynthSound('click'); setFilter('alkaline-earth'); }}
+                class={`px-4 py-2 rounded-full text-xs font-black transition ${filter === 'alkaline-earth' ? 'bg-emerald-400 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+              >
+                鹼土金屬 🎆
+              </button>
+              <button 
+                onClick={() => { playSynthSound('click'); setFilter('reactive-nonmetal'); }}
+                class={`px-4 py-2 rounded-full text-xs font-black transition ${filter === 'reactive-nonmetal' ? 'bg-pink-400 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+              >
+                非金屬 ☀️
+              </button>
+              <button 
+                onClick={() => { playSynthSound('click'); setFilter('noble-gas'); }}
+                class={`px-4 py-2 rounded-full text-xs font-black transition ${filter === 'noble-gas' ? 'bg-purple-400 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+              >
+                惰性氣體 🎈
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div class="relative w-full md:w-64">
+              <input 
+                type="text" 
+                placeholder="輸入中英文/符號搜尋..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                class="w-full pl-10 pr-4 py-2 rounded-full border-2 border-slate-300 focus:border-rose-400 outline-none text-sm font-bold"
+              />
+              <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-slate-400"></i>
+            </div>
+
+          </div>
+
+          {/* Cards Grid - Enlarged card height to h-[450px] for readability */}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredElements.map((el) => {
+              const isFlipped = flippedCards[el.num] || false;
+              const isLearned = learnedElements.includes(el.num);
+              
+              return (
+                <div 
+                  key={el.num} 
+                  onClick={() => toggleFlip(el.num)}
+                  class="h-[450px] perspective-1000 cursor-pointer group"
+                >
+                  <div class={`relative w-full h-full duration-500 transform-style-3d transition-transform ${isFlipped ? 'rotate-y-180' : ''}`}>
+                    
+                    {/* --- FRONT SIDE --- */}
+                    <div class={`absolute inset-0 backface-hidden rounded-3xl border-4 bg-white shadow-lg overflow-hidden flex flex-col justify-between p-6 ${isLearned ? 'border-emerald-300' : 'border-rose-200'}`}>
+                      
+                      {/* Card Top: Number and Status Badge */}
+                      <div class="flex justify-between items-center">
+                        <span class="bg-slate-100 text-slate-700 font-black rounded-full px-4 py-1.5 text-base">
+                          No. {el.num}
+                        </span>
+                        {isLearned ? (
+                          <span class="bg-emerald-100 text-emerald-700 text-sm font-bold py-1 px-3 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check"></i> 已讀
+                          </span>
+                        ) : (
+                          <span class="bg-rose-50 text-rose-500 text-sm font-bold py-1 px-3 rounded-full">
+                            待解鎖 
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Card Center: Large Chemical Symbol */}
+                      <div class="text-center my-4">
+                        <div class="text-7xl font-black mb-2 animate-float drop-shadow-sm">{el.emoji}</div>
+                        <h3 class="text-6xl font-black text-slate-800 tracking-tight">{el.sym}</h3>
+                        <p class="text-3xl font-black text-slate-700 mt-2">
+                          {el.nameZh} 
+                          <span class="text-base font-bold text-slate-400 block mt-1">{el.nameEn}</span>
+                        </p>
+                      </div>
+
+                      {/* Card Bottom: Element category & Flip button */}
+                      <div class="space-y-3">
+                        <div class="text-center">
+                          <span class={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${categoryNames[el.cat]?.color}`}>
+                            {categoryNames[el.cat]?.name}
+                          </span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2 pt-2 border-t border-slate-100">
+                          <button 
+                            onClick={(e) => markAsLearned(el.num, e)}
+                            disabled={isLearned}
+                            class={`flex-1 text-xs md:text-sm py-2.5 px-3 rounded-full font-bold flex items-center justify-center gap-1 transition ${
+                              isLearned 
+                                ? 'bg-emerald-50 text-emerald-300 cursor-default' 
+                                : 'bg-rose-500 hover:bg-rose-600 text-white hover:scale-105 active:scale-95'
+                            }`}
+                          >
+                            <i class="fa-solid fa-lightbulb text-sm"></i>
+                            {isLearned ? '已學會 (+2★)' : '學會了 (+2★)'}
+                          </button>
+                          <div class="bg-rose-100 text-rose-600 rounded-full w-10 h-10 flex items-center justify-center text-sm group-hover:bg-rose-200 transition">
+                            <i class="fa-solid fa-rotate"></i>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* --- BACK SIDE (BILINGUAL & LARGE FONT) --- */}
+                    <div class="absolute inset-0 backface-hidden rotate-y-180 rounded-3xl border-4 border-blue-200 bg-blue-50 shadow-lg p-5 flex flex-col justify-between">
+                      
+                      {/* Back Top: Title and Speak Voice Button */}
+                      <div class="flex justify-between items-center pb-2 border-b-2 border-blue-100">
+                        <div>
+                          <span class="text-xs text-blue-500 font-bold block">Atomic No. {el.num}</span>
+                          <span class="text-xl font-extrabold text-blue-800">{el.sym} - {el.nameZh} <span class="text-sm font-bold text-slate-500 block">{el.nameEn}</span></span>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playSynthSound('bubble');
+                            speakEnglish(el.voiceText);
+                          }}
+                          class="bg-blue-500 hover:bg-blue-600 active:scale-95 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-md transition"
+                          title="英語發音"
+                        >
+                          <i class="fa-solid fa-volume-high text-lg"></i>
+                        </button>
+                      </div>
+
+                      {/* Back Center: Content description (BILINGUAL & ENLARGED) */}
+                      <div class="my-3 space-y-4 flex-1 overflow-y-auto pr-1">
+                        {/* 1. Common Use Block */}
+                        <div>
+                          <span class="inline-block bg-blue-200 text-blue-800 text-xs font-black px-3 py-1 rounded-full mb-1.5 shadow-sm">
+                            🌱 常見用途 / Uses
+                          </span>
+                          <div class="space-y-0.5 pl-1">
+                            <p class="text-base font-extrabold text-slate-800 leading-snug">{el.useZh}</p>
+                            <p class="text-xs font-bold text-slate-500 leading-snug italic">{el.useEn}</p>
+                          </div>
+                        </div>
+
+                        {/* 2. Fun Fact Block */}
+                        <div>
+                          <span class="inline-block bg-amber-200 text-amber-800 text-xs font-black px-3 py-1 rounded-full mb-1.5 shadow-sm">
+                            💡 科學冷知識 / Facts
+                          </span>
+                          <div class="space-y-1 pl-1 border-l-4 border-amber-300">
+                            <p class="text-sm font-extrabold text-slate-700 leading-relaxed">{el.factZh}</p>
+                            <p class="text-xs font-bold text-slate-500 leading-relaxed italic">{el.factEn}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Back Bottom: Back button hint */}
+                      <div class="text-center text-xs text-blue-400 font-bold pt-2 border-t border-blue-100 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-arrow-left"></i> 點擊卡片翻回正面 (Tap to Flip)
+                      </div>
+
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 3. GAME CENTER
+    // ==========================================
+    function GameCenter({ addStars }) {
+      const [currentGame, setCurrentGame] = useState('none'); // none, matching, quiz, puzzle
+
+      return (
+        <div class="space-y-6">
+          {currentGame === 'none' ? (
+            <div class="text-center space-y-8 py-4">
+              <div class="max-w-2xl mx-auto bg-white rounded-3xl p-6 border-4 border-emerald-200 shadow-md">
+                <h2 class="text-2xl font-black text-emerald-600 mb-2">🎮 互動 STEAM 遊戲大廳</h2>
+                <p class="text-slate-500 text-sm">歡迎來到遊戲大廳！在這裡我們設計了 3 款超酷的化學小遊戲，動手動腦，答對就能賺取大量金星星喔！</p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Game Card 1: Matching Game */}
+                <div class="bg-white rounded-3xl border-4 border-pink-300 shadow-xl overflow-hidden hover:scale-105 transition flex flex-col justify-between">
+                  <div class="p-6 text-center space-y-4">
+                    <div class="text-6xl animate-bounce">🧬</div>
+                    <h3 class="text-xl font-bold text-slate-800">1. 元素連連看</h3>
+                    <p class="text-slate-500 text-xs">將化學元素符號與它們對應的日常實物或用途連線起來！看看你有多了解日常生活中的化學！</p>
+                  </div>
+                  <div class="p-6 bg-pink-50 border-t-2 border-pink-100">
+                    <button 
+                      onClick={() => { playSynthSound('click'); setCurrentGame('matching'); }}
+                      class="w-full bg-pink-500 hover:bg-pink-600 text-white font-black py-3 rounded-2xl shadow-md transition"
+                    >
+                      開始大挑戰 ⚡
+                    </button>
+                  </div>
+                </div>
+
+                {/* Game Card 2: Quiz Game */}
+                <div class="bg-white rounded-3xl border-4 border-yellow-300 shadow-xl overflow-hidden hover:scale-105 transition flex flex-col justify-between">
+                  <div class="p-6 text-center space-y-4">
+                    <div class="text-6xl animate-bounce">🏆</div>
+                    <h3 class="text-xl font-bold text-slate-800">2. 化學知識問答</h3>
+                    <p class="text-slate-500 text-xs">瘋狂科學家為你準備了5道最精采的選擇題。答對即可賺取星星，衝擊最高成就寶座！</p>
+                  </div>
+                  <div class="p-6 bg-yellow-50 border-t-2 border-yellow-100">
+                    <button 
+                      onClick={() => { playSynthSound('click'); setCurrentGame('quiz'); }}
+                      class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-black py-3 rounded-2xl shadow-md transition"
+                    >
+                      知識王對決 💥
+                    </button>
+                  </div>
+                </div>
+
+                {/* Game Card 3: Puzzle Grid */}
+                <div class="bg-white rounded-3xl border-4 border-blue-300 shadow-xl overflow-hidden hover:scale-105 transition flex flex-col justify-between">
+                  <div class="p-6 text-center space-y-4">
+                    <div class="text-6xl animate-bounce">🧩</div>
+                    <h3 class="text-xl font-bold text-slate-800">3. 元素大拼圖</h3>
+                    <p class="text-slate-500 text-xs">元素在週期表中有自己固定的家！一陣狂風吹走了幾位元素，你能幫忙把他們送回家嗎？</p>
+                  </div>
+                  <div class="p-6 bg-blue-50 border-t-2 border-blue-100">
+                    <button 
+                      onClick={() => { playSynthSound('click'); setCurrentGame('puzzle'); }}
+                      class="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-3 rounded-2xl shadow-md transition"
+                    >
+                      修復週期表 🛠️
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {/* Back to lobby button */}
+              <button 
+                onClick={() => { playSynthSound('click'); setCurrentGame('none'); }}
+                class="bg-white hover:bg-slate-50 text-slate-600 font-bold py-2 px-5 rounded-full shadow-md transition border-2 border-slate-200 flex items-center gap-2 mb-6"
+              >
+                <i class="fa-solid fa-arrow-left"></i> 返回遊戲大廳
+              </button>
+
+              {currentGame === 'matching' && <MatchingGame addStars={addStars} />}
+              {currentGame === 'quiz' && <QuizGame addStars={addStars} />}
+              {currentGame === 'puzzle' && <PuzzleGame addStars={addStars} />}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 3.1 GAME 1: MATCHING GAME
+    // ==========================================
+    function MatchingGame({ addStars }) {
+      const [leftItems, setLeftItems] = useState([]);
+      const [rightItems, setRightItems] = useState([]);
+      const [selectedLeft, setSelectedLeft] = useState(null);
+      const [selectedRight, setSelectedRight] = useState(null);
+      const [matchedPairs, setMatchedPairs] = useState([]);
+      const [completed, setCompleted] = useState(false);
+
+      const itemsPool = [
+        { sym: "He", use: "🎈 氣球漂浮" },
+        { sym: "Li", use: "🔋 手機電池" },
+        { sym: "O",  use: "🌳 呼吸氧氣" },
+        { sym: "F",  use: "🦷 保護牙膏" },
+        { sym: "Na", use: "🧂 食鹽成份" },
+        { sym: "Ca", use: "🥛 骨骼牛奶" },
+        { sym: "Si", use: "💻 電腦晶片" },
+        { sym: "Al", use: "🥤 易拉罐子" }
+      ];
+
+      const initializeGame = () => {
+        // Randomly select 4 pairs for matching
+        const shuffled = [...itemsPool].sort(() => 0.5 - Math.random()).slice(0, 4);
+        
+        // Shuffle left (Symbols) and right (Uses) differently
+        const left = shuffled.map(x => ({ sym: x.sym })).sort(() => 0.5 - Math.random());
+        const right = shuffled.map(x => ({ sym: x.sym, use: x.use })).sort(() => 0.5 - Math.random());
+
+        setLeftItems(left);
+        setRightItems(right);
+        setSelectedLeft(null);
+        setSelectedRight(null);
+        setMatchedPairs([]);
+        setCompleted(false);
+      };
+
+      useEffect(() => {
+        initializeGame();
+      }, []);
+
+      const handleLeftClick = (sym) => {
+        if (matchedPairs.includes(sym)) return;
+        playSynthSound('click');
+        setSelectedLeft(sym);
+        checkMatch(sym, selectedRight);
+      };
+
+      const handleRightClick = (sym) => {
+        if (matchedPairs.includes(sym)) return;
+        playSynthSound('click');
+        setSelectedRight(sym);
+        checkMatch(selectedLeft, sym);
+      };
+
+      const checkMatch = (leftSym, rightSym) => {
+        if (leftSym && rightSym) {
+          if (leftSym === rightSym) {
+            // Correct match
+            playSynthSound('success');
+            setMatchedPairs(prev => {
+              const updated = [...prev, leftSym];
+              if (updated.length === 4) {
+                setCompleted(true);
+                addStars(10); // Big reward!
+              }
+              return updated;
+            });
+          } else {
+            // Wrong match
+            playSynthSound('error');
+          }
+          // Reset selections
+          setSelectedLeft(null);
+          setSelectedRight(null);
+        }
+      };
+
+      return (
+        <div class="bg-white rounded-3xl p-6 border-4 border-pink-300 shadow-xl max-w-2xl mx-auto space-y-6">
+          <div class="text-center">
+            <h3 class="text-2xl font-black text-pink-600 flex items-center justify-center gap-2">
+              <span>🧬 元素與日常實物連連看</span>
+            </h3>
+            <p class="text-slate-500 text-sm mt-1">選中左邊的元素符號，再選中右邊對應的生活常見物品吧！</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-8 relative py-4">
+            
+            {/* Left Column (Symbols) */}
+            <div class="space-y-4">
+              <h4 class="text-center font-bold text-slate-400 text-xs">化學符號</h4>
+              {leftItems.map((item) => {
+                const isMatched = matchedPairs.includes(item.sym);
+                const isSelected = selectedLeft === item.sym;
+                return (
+                  <button
+                    key={item.sym}
+                    onClick={() => handleLeftClick(item.sym)}
+                    disabled={isMatched}
+                    class={`w-full py-4 rounded-2xl font-extrabold text-2xl border-4 transition flex items-center justify-center ${
+                      isMatched 
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-500 opacity-60' 
+                        : isSelected
+                          ? 'bg-pink-100 border-pink-500 text-pink-600 scale-105 shadow-md'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.sym} {isMatched && <i class="fa-solid fa-circle-check text-sm ml-2"></i>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right Column (Uses) */}
+            <div class="space-y-4">
+              <h4 class="text-center font-bold text-slate-400 text-xs">日常用途 / 生活常見</h4>
+              {rightItems.map((item) => {
+                const isMatched = matchedPairs.includes(item.sym);
+                const isSelected = selectedRight === item.sym;
+                return (
+                  <button
+                    key={item.sym}
+                    onClick={() => handleRightClick(item.sym)}
+                    disabled={isMatched}
+                    class={`w-full py-4 px-2 rounded-2xl font-bold text-sm border-4 transition flex items-center justify-center ${
+                      isMatched 
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-500 opacity-60' 
+                        : isSelected
+                          ? 'bg-pink-100 border-pink-500 text-pink-600 scale-105 shadow-md'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.use} {isMatched && <i class="fa-solid fa-circle-check text-sm ml-2"></i>}
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+
+          {/* Success Banner */}
+          {completed && (
+            <div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-2xl p-5 text-center animate-bounce shadow-lg space-y-3">
+              <h4 class="text-xl font-black">🎉 太棒了！全部連線正確！</h4>
+              <p class="text-sm">你獲得了 🌟 10 顆星星獎勵！日常生活的化學難不倒你！</p>
+              <button 
+                onClick={initializeGame}
+                class="bg-white text-emerald-600 font-extrabold py-2 px-6 rounded-full shadow hover:bg-slate-50 transition"
+              >
+                再玩一局 🔄
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 3.2 GAME 2: QUIZ GAME
+    // ==========================================
+    function QuizGame({ addStars }) {
+      const [questions, setQuestions] = useState([]);
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+      const [isAnswered, setIsAnswered] = useState(false);
+      const [score, setScore] = useState(0);
+      const [quizCompleted, setQuizCompleted] = useState(false);
+
+      const quizPool = [
+        { q: "牛奶中有大量哪種元素，能幫助我們的骨骼和牙齒生長得更強壯？", options: ["H (氫)", "He (氦)", "Ca (鈣)", "Li (鋰)"], correct: 2, hint: "Calcium 鈣質是骨骼發展的大功臣！" },
+        { q: "「鬼口水拉伸泥」中，是加入了哪一種化學元素才能軟綿綿拉開呢？", options: ["B (硼)", "C (碳)", "O (氧)", "Na (鈉)"], correct: 0, hint: "Boron 硼砂能改變鬼口水的結構。" },
+        { q: "我們在薯片袋中，充入甚麼安全氣體可以使薯片長時間爽脆？", options: ["Cl (氯)", "N (氮)", "H (氫)", "F (氟)"], correct: 1, hint: "Nitrogen 氮氣佔了空氣的78%！" },
+        { q: "街上五顏六色非常美麗耀眼的「霓虹燈招牌」，裡面充入了甚麼氣體？", options: ["Ar (氬)", "Mg (鎂)", "Si (矽)", "Ne (氖)"], correct: 3, hint: "Neon 氖通電時會發出絢麗紅光。" },
+        { q: "保護牙齒避免產生蛀牙，我們應該使用含有哪種元素的防蛀牙膏？", options: ["F (氟)", "C (碳)", "Be (鈹)", "S (硫)"], correct: 0, hint: "Fluorine 氟是牙齒表面結合成保護盾。" },
+        { q: "香蕉中富含哪種重要的電解質，能保證我們的肌肉神經健康運動？", options: ["Na (鈉)", "K (鉀)", "Li (鋰)", "Al (鋁)"], correct: 1, hint: "Potassium 鉀在香蕉和牛油果中最多。" },
+        { q: "燃燒時發出耀眼奪目白光，常用於煙花和閃光彈的是哪種元素？", options: ["Mg (鎂)", "He (氦)", "H (氫)", "Si (矽)"], correct: 0, hint: "Magnesium 燃燒白光非常閃耀。" }
+      ];
+
+      const startQuiz = () => {
+        // Pick 5 random questions
+        const shuffled = [...quizPool].sort(() => 0.5 - Math.random()).slice(0, 5);
+        setQuestions(shuffled);
+        setCurrentIndex(0);
+        setSelectedAnswer(null);
+        setIsAnswered(false);
+        setScore(0);
+        setQuizCompleted(false);
+      };
+
+      useEffect(() => {
+        startQuiz();
+      }, []);
+
+      const handleOptionClick = (idx) => {
+        if (isAnswered) return;
+        setSelectedAnswer(idx);
+        setIsAnswered(true);
+
+        const currentQuestion = questions[currentIndex];
+        if (idx === currentQuestion.correct) {
+          playSynthSound('success');
+          setScore(prev => prev + 1);
+        } else {
+          playSynthSound('error');
+        }
+      };
+
+      const handleNext = () => {
+        playSynthSound('click');
+        if (currentIndex < 4) {
+          setCurrentIndex(prev => prev + 1);
+          setSelectedAnswer(null);
+          setIsAnswered(false);
+        } else {
+          // Finalize quiz
+          setQuizCompleted(true);
+          // Reward: 3 stars per correct answer
+          addStars(score * 3);
+        }
+      };
+
+      if (questions.length === 0) return null;
+
+      const currentQ = questions[currentIndex];
+
+      return (
+        <div class="bg-white rounded-3xl p-6 border-4 border-yellow-300 shadow-xl max-w-xl mx-auto space-y-6">
+          {!quizCompleted ? (
+            <div class="space-y-4">
+              {/* Progress bar */}
+              <div class="flex justify-between items-center text-xs text-slate-400 font-bold">
+                <span>問答進行中...</span>
+                <span>問題 {currentIndex + 1} / 5</span>
+              </div>
+              <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden border">
+                <div class="bg-yellow-400 h-full transition-all duration-300" style={{ width: `${(currentIndex + 1) * 20}%` }}></div>
+              </div>
+
+              {/* Question display */}
+              <div class="bg-yellow-50/50 rounded-2xl p-4 border border-yellow-100">
+                <p class="text-lg font-black text-slate-800 leading-relaxed">{currentQ.q}</p>
+              </div>
+
+              {/* Answers list */}
+              <div class="space-y-3">
+                {currentQ.options.map((opt, idx) => {
+                  let btnStyle = "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100";
+                  
+                  if (isAnswered) {
+                    if (idx === currentQ.correct) {
+                      btnStyle = "bg-emerald-100 border-emerald-500 text-emerald-800 font-black";
+                    } else if (idx === selectedAnswer) {
+                      btnStyle = "bg-rose-100 border-rose-400 text-rose-800";
+                    } else {
+                      btnStyle = "bg-slate-50 border-slate-200 text-slate-400 opacity-60";
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleOptionClick(idx)}
+                      disabled={isAnswered}
+                      class={`w-full py-3 px-4 rounded-xl border-2 text-left text-sm font-bold transition flex justify-between items-center ${btnStyle}`}
+                    >
+                      <span>{opt}</span>
+                      {isAnswered && idx === currentQ.correct && <i class="fa-solid fa-circle-check text-emerald-600"></i>}
+                      {isAnswered && idx === selectedAnswer && idx !== currentQ.correct && <i class="fa-solid fa-circle-xmark text-rose-600"></i>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explanatory hint if answered */}
+              {isAnswered && (
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2 animate-pulse-slow">
+                  <span>💡</span>
+                  <div>
+                    <span class="font-bold">科學解答小貼士：</span>
+                    <span>{currentQ.hint}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Next Question button */}
+              {isAnswered && (
+                <button 
+                  onClick={handleNext}
+                  class="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-3 rounded-2xl shadow transition"
+                >
+                  {currentIndex < 4 ? '下一題 ➡️' : '查看最終得分 🏁'}
+                </button>
+              )}
+
+            </div>
+          ) : (
+            // Quiz completed view
+            <div class="text-center space-y-6 py-4">
+              <div class="text-6xl animate-bounce">🎖️</div>
+              <h4 class="text-2xl font-black text-slate-800">完成化學問答！</h4>
+              <div class="bg-yellow-50 rounded-2xl p-6 border-2 border-yellow-200 max-w-sm mx-auto space-y-2">
+                <p class="text-slate-500 text-sm font-bold">答對題數：</p>
+                <p class="text-4xl font-extrabold text-yellow-600">{score} / 5</p>
+                <p class="text-slate-500 text-xs font-bold pt-2 border-t border-yellow-100">
+                  答對每題賺取 3 顆星星！你共獲得：
+                </p>
+                <p class="text-2xl font-black text-emerald-600">🌟 {score * 3} 顆金星星！</p>
+              </div>
+
+              <div class="flex gap-4 max-w-sm mx-auto">
+                <button 
+                  onClick={startQuiz}
+                  class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-slate-800 font-extrabold py-3 rounded-2xl shadow transition"
+                >
+                  再挑戰一次 🔄
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 3.3 GAME 3: PUZZLE GAME (GRID ARRANGEMENT)
+    // ==========================================
+    function PuzzleGame({ addStars }) {
+      const [gridElements, setGridElements] = useState([]);
+      const [missingSlots, setMissingSlots] = useState([]);
+      const [draggedItem, setDraggedItem] = useState(null);
+      const [solved, setSolved] = useState(false);
+
+      // We focus on first 8 elements for simpler puzzle size appropriate for kids
+      const puzzleBase = [
+        { num: 1, sym: "H" },
+        { num: 2, sym: "He" },
+        { num: 3, sym: "Li" },
+        { num: 4, sym: "Be" },
+        { num: 5, sym: "B" },
+        { num: 6, sym: "C" },
+        { num: 7, sym: "N" },
+        { num: 8, sym: "O" }
+      ];
+
+      const initPuzzle = () => {
+        // Randomly pick 3 elements to pull out of the grid
+        const missingCount = 3;
+        const shuffled = [...puzzleBase].sort(() => 0.5 - Math.random());
+        const missingNums = shuffled.slice(0, missingCount).map(x => x.num);
+        
+        setMissingSlots(shuffled.slice(0, missingCount));
+        setGridElements(puzzleBase.map(el => ({
+          ...el,
+          isMissing: missingNums.includes(el.num),
+          currentSym: missingNums.includes(el.num) ? "" : el.sym
+        })));
+        setDraggedItem(null);
+        setSolved(false);
+      };
+
+      useEffect(() => {
+        initPuzzle();
+      }, []);
+
+      const handleSlotClick = (num) => {
+        // Click-to-place matching simplified for mobile touch screens
+        if (!draggedItem) return;
+        
+        playSynthSound('click');
+        const targetEl = gridElements.find(g => g.num === num);
+
+        if (targetEl.num === draggedItem.num) {
+          // Correct place!
+          playSynthSound('success');
+          setGridElements(prev => prev.map(g => {
+            if (g.num === num) {
+              return { ...g, currentSym: draggedItem.sym, isMissing: false };
+            }
+            return g;
+          }));
+          
+          setMissingSlots(prev => {
+            const updated = prev.filter(x => x.num !== draggedItem.num);
+            if (updated.length === 0) {
+              setSolved(true);
+              addStars(15); // Big reward for hard puzzle!
+            }
+            return updated;
+          });
+          setDraggedItem(null);
+        } else {
+          // Wrong slot!
+          playSynthSound('error');
+        }
+      };
+
+      return (
+        <div class="bg-white rounded-3xl p-6 border-4 border-blue-300 shadow-xl max-w-xl mx-auto space-y-6">
+          <div class="text-center">
+            <h3 class="text-2xl font-black text-blue-600 flex items-center justify-center gap-2">
+              <span>🧩 元素拼圖挑戰：修復前8位週期表</span>
+            </h3>
+            <p class="text-slate-500 text-sm mt-1">
+              先在底下點選被吹跑的元素卡，再點擊週期表中閃爍對應序號「？」的空白家裡吧！
+            </p>
+          </div>
+
+          {/* Mini-Periodic Grid (Layout) */}
+          <div class="border-4 border-dashed border-slate-200 rounded-3xl p-4 bg-slate-50/50 space-y-4">
+            {/* Period 1 (H on left, He on far right) */}
+            <div class="flex justify-between items-center gap-4">
+              {gridElements.filter(g => g.num <= 2).map((item) => (
+                <div 
+                  key={item.num}
+                  onClick={() => item.isMissing && handleSlotClick(item.num)}
+                  class={`w-20 h-20 rounded-2xl border-4 font-black flex flex-col items-center justify-center transition cursor-pointer ${
+                    item.isMissing 
+                      ? 'bg-blue-100 border-blue-400 text-blue-500 hover:scale-105 shadow-inner border-dashed animate-pulse'
+                      : 'bg-emerald-400 border-emerald-600 text-white shadow'
+                  }`}
+                >
+                  <span class="text-[10px] block opacity-85">No.{item.num}</span>
+                  <span class="text-xl">{item.isMissing ? '?' : item.sym}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Period 2 (Li, Be, B, C, N, O in grid) */}
+            <div class="grid grid-cols-6 gap-2">
+              {gridElements.filter(g => g.num >= 3 && g.num <= 8).map((item) => (
+                <div 
+                  key={item.num}
+                  onClick={() => item.isMissing && handleSlotClick(item.num)}
+                  class={`h-20 rounded-xl border-4 font-black flex flex-col items-center justify-center transition cursor-pointer ${
+                    item.isMissing 
+                      ? 'bg-blue-100 border-blue-400 text-blue-500 hover:scale-105 shadow-inner border-dashed animate-pulse'
+                      : 'bg-emerald-400 border-emerald-600 text-white shadow'
+                  }`}
+                >
+                  <span class="text-[9px] block opacity-85">No.{item.num}</span>
+                  <span class="text-lg">{item.isMissing ? '?' : item.sym}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Missing elements drawer */}
+          {!solved && (
+            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 space-y-3">
+              <h4 class="text-xs font-bold text-slate-500 text-center">🌬️ 被狂風刮走掉落的化學元素：</h4>
+              <div class="flex justify-center gap-4">
+                {missingSlots.map((item) => {
+                  const isSelected = draggedItem?.num === item.num;
+                  return (
+                    <button
+                      key={item.num}
+                      onClick={() => { playSynthSound('click'); setDraggedItem(item); }}
+                      class={`w-16 h-16 rounded-xl border-4 font-extrabold text-lg shadow-md flex flex-col items-center justify-center transition ${
+                        isSelected 
+                          ? 'bg-yellow-400 border-yellow-600 text-slate-800 scale-110 shadow-lg' 
+                          : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span class="text-[9px] block opacity-70">No.{item.num}</span>
+                      <span>{item.sym}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Success Reward Banner */}
+          {solved && (
+            <div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-2xl p-5 text-center animate-bounce shadow-lg space-y-3">
+              <h4 class="text-xl font-black">🎉 週期表修復大成功！</h4>
+              <p class="text-sm">太厲害了，所有元素都順利送回正確原子序位置了！你獲得了 🌟 15 顆星星獎勵！</p>
+              <button 
+                onClick={initPuzzle}
+                class="bg-white text-emerald-600 font-extrabold py-2 px-6 rounded-full shadow hover:bg-slate-50 transition"
+              >
+                繼續拼圖 🔄
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 4. ACHIEVEMENTS SECTION
+    // ==========================================
+    function AchievementsSection({ stars, unlockedAchievements }) {
+      const badgesPool = [
+        { id: 'first_step', name: '🧪 探索啟航學徒', desc: '在學習旅程中獲得 5 顆星星', target: 5, icon: 'fa-vial-glass', color: 'bg-blue-100 text-blue-600 border-blue-300' },
+        { id: 'quiz_hero', name: '🏆 化學問答大師', desc: '在學習旅程中累積 25 顆星星', target: 25, icon: 'fa-trophy', color: 'bg-yellow-100 text-yellow-600 border-yellow-300 animate-pulse-slow' },
+        { id: 'element_king', name: '👑 宇宙週期表終極王', desc: '學習精通獲得 60 顆星星', target: 60, icon: 'fa-crown', color: 'bg-purple-100 text-purple-600 border-purple-300' }
+      ];
+
+      return (
+        <div class="bg-white rounded-3xl p-6 border-4 border-yellow-300 shadow-xl max-w-2xl mx-auto space-y-6">
+          <div class="text-center">
+            <h3 class="text-2xl font-black text-yellow-600">🏆 STEAM 化學榮譽勳章榜</h3>
+            <p class="text-slate-500 text-sm mt-1">努力學習累積星星，就能解鎖超棒的化學榮譽稱號！</p>
+          </div>
+
+          <div class="space-y-4">
+            {badgesPool.map((b) => {
+              const isUnlocked = unlockedAchievements.includes(b.id);
+              
+              return (
+                <div 
+                  key={b.id} 
+                  class={`border-4 rounded-2xl p-5 flex items-center justify-between gap-4 transition ${
+                    isUnlocked 
+                      ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300 shadow-md' 
+                      : 'bg-slate-50 border-slate-200 text-slate-400'
+                  }`}
+                >
+                  <div class="flex items-center gap-4">
+                    <div class={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-inner border-2 ${
+                      isUnlocked 
+                        ? 'bg-yellow-400 text-white border-white' 
+                        : 'bg-slate-200 text-slate-400 border-slate-300'
+                    }`}>
+                      <i class={`fa-solid ${b.icon}`}></i>
+                    </div>
+                    <div>
+                      <h4 class={`text-lg font-black ${isUnlocked ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {b.name}
+                      </h4>
+                      <p class="text-xs text-slate-500">{b.desc}</p>
+                    </div>
+                  </div>
+
+                  <div class="text-right">
+                    {isUnlocked ? (
+                      <span class="bg-emerald-100 text-emerald-700 font-extrabold text-xs py-1.5 px-3 rounded-full border border-emerald-300">
+                        🎉 已解鎖
+                      </span>
+                    ) : (
+                      <div class="text-xs text-slate-400 font-bold">
+                        需 {b.target} 🌟
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Progress overview */}
+          <div class="pt-4 border-t border-slate-100 text-center space-y-2">
+            <p class="text-xs text-slate-400 font-bold">目前擁有 {stars} 顆星，已解鎖 {unlockedAchievements.length} / 3 個榮譽勳章</p>
+            <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden border">
+              <div 
+                class="bg-gradient-to-r from-yellow-400 to-amber-500 h-full transition-all duration-500" 
+                style={{ width: `${Math.min((stars / 60) * 100, 100)}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Render App
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
